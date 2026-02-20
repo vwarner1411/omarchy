@@ -9,6 +9,7 @@ Upstream Omarchy info: [omarchy.org](https://omarchy.org)
 - Online install/update defaults target this fork (`warnerva/omarchy`) instead of upstream.
 - Added `omarchy-setup-dualboot` for resilient Limine dual-boot setup.
 - Added `omarchy-setup-skel` to build a sanitized `/etc/skel` from an existing user.
+- Added `omarchy-setup-sync-upstream` for controlled upstream merge syncs.
 - Added `inplace-luks-limine-windows-runbook.md` for optional in-place LUKS conversion planning.
 
 ## Repo Defaults
@@ -90,6 +91,40 @@ See:
 - `inplace-luks-limine-windows-runbook.md`
 
 This document is a runbook for planning in-place encryption of Linux root while keeping Windows partitions untouched. It includes explicit backup and rollback steps.
+
+### 4) Sync upstream into your fork safely
+
+Command: `omarchy-setup-sync-upstream`
+
+Goal:
+- Pull latest changes from `basecamp/omarchy`.
+- Maintain a local tracking branch for upstream (`upstream-master` by default).
+- Merge upstream changes into your custom branch using normal git merge semantics.
+- Preserve local commits and force conflict resolution where both sides changed the same lines.
+
+Default behavior:
+- upstream remote name: `upstream`
+- upstream URL: `https://github.com/basecamp/omarchy.git`
+- upstream branch: `master`
+- tracking branch: `upstream-master`
+- target branch: current branch
+- pushes `upstream-master` and merged target branch to `origin`
+- refuses to run if your git working tree is dirty
+
+Usage:
+
+```bash
+omarchy-setup-sync-upstream
+```
+
+Common variants:
+
+```bash
+omarchy-setup-sync-upstream --target-branch dev
+omarchy-setup-sync-upstream --no-push
+```
+
+If a conflict occurs, the command exits and leaves your repo in normal merge-conflict state so you can resolve intentionally.
 
 ## Suggested Validation After Changes
 

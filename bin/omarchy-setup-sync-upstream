@@ -1,0 +1,208 @@
+#!/bin/bash
+
+# Sync upstream Omarchy into this fork using a merge workflow that preserves local commits.
+#
+# Flow:
+# 1) Ensure clean working tree
+# 2) Add or update upstream remote
+# 3) Refresh local tracking branch from upstream (default: upstream-master)
+# 4) Merge tracking branch into target branch (default: current branch)
+# 5) Push tracking + target branches to origin (unless --no-push)
+
+set -euo pipefail
+
+cmd_present() {
+  local cmd=$1
+
+  if command -v omarchy-cmd-present >/dev/null 2>&1; then
+    omarchy-cmd-present "$cmd"
+  else
+    command -v "$cmd" >/dev/null 2>&1
+  fi
+}
+
+print_usage() {
+  cat <<USAGE
+Usage: omarchy-setup-sync-upstream [options]
+
+Options:
+  --target-branch <branch>      Branch to merge into (default: current branch)
+  --upstream-branch <branch>    Upstream branch to track (default: master)
+  --tracking-branch <branch>    Local branch mirroring upstream (default: upstream-master)
+  --upstream-remote <name>      Remote name for upstream (default: upstream)
+  --upstream-url <url>          Upstream git URL (default: https://github.com/basecamp/omarchy.git)
+  --no-push                     Do not push tracking/target branches to origin
+  --help, -h                    Show this help
+
+Examples:
+  omarchy-setup-sync-upstream
+  omarchy-setup-sync-upstream --target-branch dev
+  omarchy-setup-sync-upstream --upstream-branch master --tracking-branch upstream-master
+USAGE
+}
+
+ensure_clean_worktree() {
+  if [[ -n $(git status --porcelain) ]]; then
+    echo "Error: git working tree is not clean." >&2
+    echo "Commit/stash your changes before syncing upstream." >&2
+    exit 1
+  fi
+}
+
+target_branch=""
+upstream_branch="master"
+tracking_branch="upstream-master"
+upstream_remote="upstream"
+upstream_url="https://github.com/basecamp/omarchy.git"
+push_changes=1
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target-branch)
+      target_branch=${2:-}
+      if [[ -z $target_branch ]]; then
+        echo "Error: --target-branch requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --upstream-branch)
+      upstream_branch=${2:-}
+      if [[ -z $upstream_branch ]]; then
+        echo "Error: --upstream-branch requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --tracking-branch)
+      tracking_branch=${2:-}
+      if [[ -z $tracking_branch ]]; then
+        echo "Error: --tracking-branch requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --upstream-remote)
+      upstream_remote=${2:-}
+      if [[ -z $upstream_remote ]]; then
+        echo "Error: --upstream-remote requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --upstream-url)
+      upstream_url=${2:-}
+      if [[ -z $upstream_url ]]; then
+        echo "Error: --upstream-url requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --no-push)
+      push_changes=0
+      shift
+      ;;
+    --help|-h)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option '$1'." >&2
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
+if ! cmd_present git; then
+  echo "Error: git command is required." >&2
+  exit 1
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Error: not inside a git repository." >&2
+  exit 1
+fi
+
+if [[ -z $target_branch ]]; then
+  target_branch="$(git branch --show-current)"
+fi
+
+if [[ -z $target_branch ]]; then
+  echo "Error: could not determine target branch (detached HEAD?)." >&2
+  echo "Pass --target-branch explicitly." >&2
+  exit 1
+fi
+
+original_branch="$(git branch --show-current)"
+ensure_clean_worktree
+
+echo "Syncing upstream repository..."
+echo "  target branch:   $target_branch"
+echo "  upstream remote: $upstream_remote"
+echo "  upstream url:    $upstream_url"
+echo "  upstream branch: $upstream_branch"
+echo "  tracking branch: $tracking_branch"
+echo
+
+if git remote get-url "$upstream_remote" >/dev/null 2>&1; then
+  current_upstream_url="$(git remote get-url "$upstream_remote")"
+  if [[ $current_upstream_url != "$upstream_url" ]]; then
+    echo "Updating remote '$upstream_remote' URL"
+    git remote set-url "$upstream_remote" "$upstream_url"
+  fi
+else
+  echo "Adding remote '$upstream_remote'"
+  git remote add "$upstream_remote" "$upstream_url"
+fi
+
+echo "Fetching remotes..."
+git fetch "$upstream_remote"
+git fetch origin
+
+if ! git show-ref --verify --quiet "refs/remotes/$upstream_remote/$upstream_branch"; then
+  echo "Error: branch '$upstream_branch' not found on remote '$upstream_remote'." >&2
+  exit 1
+fi
+
+echo "Refreshing tracking branch '$tracking_branch' from '$upstream_remote/$upstream_branch'"
+git checkout -B "$tracking_branch" "$upstream_remote/$upstream_branch"
+
+if [[ $push_changes -eq 1 ]]; then
+  echo "Pushing tracking branch to origin..."
+  git push -u origin "$tracking_branch"
+fi
+
+echo "Switching to target branch '$target_branch'"
+git checkout "$target_branch"
+
+if git show-ref --verify --quiet "refs/remotes/origin/$target_branch"; then
+  echo "Fast-forwarding target branch from origin..."
+  git pull --ff-only origin "$target_branch"
+fi
+
+echo "Merging '$tracking_branch' into '$target_branch'..."
+if ! git merge --no-ff "$tracking_branch"; then
+  echo
+  echo "Merge conflict detected."
+  echo "Resolve conflicts, then run:"
+  echo "  git add <resolved files>"
+  echo "  git commit"
+  if [[ $push_changes -eq 1 ]]; then
+    echo "  git push origin $target_branch"
+  fi
+  exit 1
+fi
+
+if [[ $push_changes -eq 1 ]]; then
+  echo "Pushing merged target branch to origin..."
+  git push origin "$target_branch"
+fi
+
+echo
+echo "Upstream sync complete."
+echo "Current branch: $(git branch --show-current)"
+
+if [[ $original_branch != "$target_branch" ]]; then
+  echo "Note: original branch was '$original_branch'."
+fi
