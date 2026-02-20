@@ -159,10 +159,24 @@ Most of these are carried into new users through the `omarchy-setup-skel` flow.
 
 ## Local Customization Scripts
 
-These workstation-local scripts drive the non-upstream behavior:
+These versioned scripts drive the non-upstream workstation behavior:
 
-- `~/.local/bin/omarchy-local-root-apply`
-- `~/.local/bin/omarchy-local-apply`
+- `bin/omarchy-local-root-apply`
+- `bin/omarchy-local-apply`
+
+Run order:
+
+```bash
+bin/omarchy-local-root-apply
+bin/omarchy-local-apply
+```
+
+Override source:
+
+- Default override directory: `config/local-overrides/`
+- Optional override path env var: `OMARCHY_LOCAL_OVERRIDES_DIR`
+- If older copies exist in `~/.local/bin`, remove them to avoid drift from versioned repo scripts.
+- Scripts auto-fallback to the repo root when `OMARCHY_PATH` is unset or points to a missing checkout.
 
 ### Package Delta (vs upstream baseline)
 
@@ -244,6 +258,7 @@ From `omarchy-local-apply`:
   - `~/.config/lsd/config.yaml`
   - `~/.config/lsd/colors.yaml`
   - `~/.nvimrc`
+- Uses versioned overrides from `config/local-overrides/` by default.
 - Ensures `oh-my-zsh` and plugin chain are installed:
   - `autoupdate`
   - `zsh-autosuggestions`

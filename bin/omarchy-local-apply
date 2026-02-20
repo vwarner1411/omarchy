@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Apply user-level local overrides from the repository.
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+if [[ ! -d $OMARCHY_PATH/bin ]] && [[ -d $repo_root/bin ]]; then
+  OMARCHY_PATH="$repo_root"
+fi
+
+overrides="${OMARCHY_LOCAL_OVERRIDES_DIR:-$OMARCHY_PATH/config/local-overrides}"
+
+copy_override() {
+  local source_file=$1
+  local target_file=$2
+
+  if [[ -f $source_file ]]; then
+    mkdir -p "$(dirname "$target_file")"
+    install -m 0644 "$source_file" "$target_file"
+  fi
+}
+
+ensure_git_repo() {
+  local repo_url=$1
+  local dest_dir=$2
+  local branch=$3
+
+  if [[ ! -d $dest_dir/.git ]]; then
+    mkdir -p "$(dirname "$dest_dir")"
+    if ! git clone --depth=1 --branch "$branch" "$repo_url" "$dest_dir" >/dev/null 2>&1; then
+      echo "warning: failed to clone $repo_url"
+      return 0
+    fi
+    return 0
+  fi
+
+  if ! git -C "$dest_dir" remote set-url origin "$repo_url" >/dev/null 2>&1; then
+    echo "warning: failed to set remote for $dest_dir"
+    return 0
+  fi
+
+  if ! git -C "$dest_dir" pull --ff-only --quiet >/dev/null 2>&1; then
+    echo "warning: failed to update $dest_dir"
+  fi
+}
+
+ensure_zsh_plugin_chain() {
+  local zsh_dir="$HOME/.oh-my-zsh"
+  local custom_plugins_dir="$zsh_dir/custom/plugins"
+
+  ensure_git_repo "https://github.com/ohmyzsh/ohmyzsh.git" "$zsh_dir" "master"
+  mkdir -p "$custom_plugins_dir"
+
+  ensure_git_repo "https://github.com/TamCore/autoupdate-oh-my-zsh-plugins.git" "$custom_plugins_dir/autoupdate" "master"
+  ensure_git_repo "https://github.com/zsh-users/zsh-autosuggestions.git" "$custom_plugins_dir/zsh-autosuggestions" "master"
+  ensure_git_repo "https://github.com/zsh-users/zsh-completions.git" "$custom_plugins_dir/zsh-completions" "master"
+  ensure_git_repo "https://github.com/zsh-users/zsh-syntax-highlighting.git" "$custom_plugins_dir/zsh-syntax-highlighting" "master"
+
+  if command -v starship >/dev/null 2>&1 && [[ -d $zsh_dir/custom ]]; then
+    starship completions zsh >"$zsh_dir/custom/starship.zsh" 2>/dev/null || true
+  fi
+}
+
+copy_override "$overrides/zshrc" "$HOME/.zshrc"
+copy_override "$overrides/ghostty/config" "$HOME/.config/ghostty/config"
+copy_override "$overrides/starship.toml" "$HOME/.config/starship.toml"
+copy_override "$overrides/lsd/config.yaml" "$HOME/.config/lsd/config.yaml"
+copy_override "$overrides/lsd/colors.yaml" "$HOME/.config/lsd/colors.yaml"
+copy_override "$overrides/nvimrc" "$HOME/.nvimrc"
+
+ensure_zsh_plugin_chain

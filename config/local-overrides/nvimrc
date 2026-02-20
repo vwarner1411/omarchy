@@ -1,0 +1,15 @@
+" Local Neovim compatibility layer for alias: nvim -u ~/.nvimrc
+" Keep Omarchy/LazyVim as the base config and apply personal overrides.
+
+if filereadable(expand("~/.config/nvim/init.lua"))
+  execute "luafile " . fnameescape(expand("~/.config/nvim/init.lua"))
+endif
+
+" Dotfiles editing preferences
+set tabstop=2
+set shiftwidth=2
+set expandtab
+set mouse=n
+
+" Prefer Tokyo Night if available
+silent! colorscheme tokyonight-night

@@ -1,0 +1,118 @@
+# User overrides for Omarchy (managed by omarchy-local-apply)
+[[ $- != *i* ]] && return
+
+export PATH="$HOME/.local/bin:/usr/local/sbin:$PATH"
+typeset -U PATH path
+
+HISTSIZE=32768
+SAVEHIST=32768
+HISTFILE="$HOME/.zsh_history"
+setopt append_history share_history hist_ignore_dups hist_reduce_blanks inc_append_history extended_glob
+
+# Oh My Zsh plugin chain (managed by omarchy-local-apply).
+export ZSH="$HOME/.oh-my-zsh"
+if [[ -d $ZSH ]]; then
+  if [[ -d $ZSH/custom/plugins/zsh-completions/src ]]; then
+    FPATH=$ZSH/custom/plugins/zsh-completions/src:$FPATH
+  fi
+
+  ZSH_THEME=""
+  plugins=(git autoupdate zsh-syntax-highlighting zsh-autosuggestions zsh-completions)
+
+  if [[ -f $ZSH/oh-my-zsh.sh ]]; then
+    source "$ZSH/oh-my-zsh.sh"
+  fi
+fi
+
+export BAT_THEME=ansi
+if [[ -n $EDITOR ]]; then
+  export SUDO_EDITOR="$EDITOR"
+fi
+
+# Reuse Omarchy aliases/functions where compatible with zsh.
+if [[ -f $HOME/.local/share/omarchy/default/bash/aliases ]]; then
+  source "$HOME/.local/share/omarchy/default/bash/aliases"
+fi
+
+if [[ -f $HOME/.local/share/omarchy/default/bash/functions ]]; then
+  source "$HOME/.local/share/omarchy/default/bash/functions"
+fi
+
+# Aliases carried from your dotfiles setup.
+if command -v nvim >/dev/null 2>&1; then
+  alias vi='nvim -u ~/.nvimrc'
+  alias vim='nvim -u ~/.nvimrc'
+  alias nvim='nvim -u ~/.nvimrc'
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  alias python='python3'
+fi
+
+if command -v pip3 >/dev/null 2>&1; then
+  alias pip='pip3'
+fi
+
+if command -v pwsh >/dev/null 2>&1; then
+  alias powershell='pwsh'
+fi
+
+if command -v omarchy-update >/dev/null 2>&1; then
+  alias omarchski='omarchy-update'
+  alias aptski='omarchski'
+fi
+
+if command -v mosh >/dev/null 2>&1; then
+  alias mosh='mosh -a'
+fi
+
+if command -v yt-dlp >/dev/null 2>&1; then
+  if command -v aria2c >/dev/null 2>&1; then
+    alias youtube-dl-1080="yt-dlp -c -f 137+140 -o '%(title)s.%(ext)s' --external-downloader aria2c --downloader-args 'aria2c:-c -j 16 -x 16 -s 16 -k 5M'"
+    alias youtube-dl="yt-dlp -c -S res,ext:mp4:m4a -o '%(title)s.%(ext)s' --external-downloader aria2c --downloader-args 'aria2c:-c -j 16 -x 16 -s 16 -k 5M'"
+  else
+    alias youtube-dl-1080="yt-dlp -c -f 137+140 -o '%(title)s.%(ext)s'"
+    alias youtube-dl="yt-dlp -c -S res,ext:mp4:m4a -o '%(title)s.%(ext)s'"
+  fi
+fi
+
+# Prefer lsd over eza/ls.
+if command -v lsd >/dev/null 2>&1; then
+  alias ls='lsd'
+  alias l='lsd -l'
+  alias ll='lsd -la'
+  alias la='lsd -la'
+  alias lsa='lsd -la'
+  alias lt='lsd --tree --depth 2'
+  alias lta='lsd --tree --depth 2 -a'
+fi
+
+# Prefer tealdeer package behavior.
+if command -v tealdeer >/dev/null 2>&1; then
+  alias tldr='tealdeer'
+elif command -v tldr >/dev/null 2>&1 && pacman -Q tealdeer >/dev/null 2>&1; then
+  alias tealdeer='tldr'
+fi
+
+# Yazi convenience alias.
+if command -v yazi >/dev/null 2>&1; then
+  alias yz='yazi'
+fi
+
+autoload -Uz zmv
+
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
+
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
+if command -v fzf >/dev/null 2>&1; then
+  source <(fzf --zsh)
+fi
+
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init zsh)"
+fi

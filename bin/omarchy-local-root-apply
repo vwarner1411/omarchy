@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# Apply local workstation package/service customizations.
+#
+# This script is intended to be run as the logged-in user. It uses sudo for
+# privileged operations where required.
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+
+if [[ ! -d $OMARCHY_PATH/bin ]] && [[ -d $repo_root/bin ]]; then
+  OMARCHY_PATH="$repo_root"
+fi
+
+cmd_present() {
+  local cmd=$1
+
+  if command -v omarchy-cmd-present >/dev/null 2>&1; then
+    omarchy-cmd-present "$cmd"
+  else
+    command -v "$cmd" >/dev/null 2>&1
+  fi
+}
+
+omarchy_pkg_add="$OMARCHY_PATH/bin/omarchy-pkg-add"
+omarchy_pkg_drop="$OMARCHY_PATH/bin/omarchy-pkg-drop"
+omarchy_pkg_aur_add="$OMARCHY_PATH/bin/omarchy-pkg-aur-add"
+
+if [[ ! -x $omarchy_pkg_add ]] || [[ ! -x $omarchy_pkg_drop ]]; then
+  echo "Error: required Omarchy package helpers are missing under $OMARCHY_PATH/bin." >&2
+  exit 1
+fi
+
+# Remove conflicting and unwanted packages first.
+"$omarchy_pkg_drop" tldr eza alacritty
+
+# Package sets derived from bootstrap and local preferences.
+# Names are normalized for Arch where needed.
+bootstrap_pacman_packages=(
+  ansible
+  aria2
+  base-devel
+  btop
+  bzip2
+  ca-certificates
+  coreutils
+  curl
+  fastfetch
+  fontconfig
+  fzf
+  git
+  ghostty
+  gnupg
+  iftop
+  iotop
+  jq
+  keyd
+  kitty
+  lsd
+  lynx
+  mosh
+  ncdu
+  ncurses
+  neovim
+  nfs-utils
+  openssh
+  plocate
+  python
+  python-pip
+  python-pipx
+  python-virtualenv
+  ripgrep
+  rsync
+  starship
+  sysstat
+  tailscale
+  tar
+  tealdeer
+  tree
+  unzip
+  wget
+  xz
+  yazi
+  yt-dlp
+  zip
+  zsh
+)
+
+"$omarchy_pkg_add" "${bootstrap_pacman_packages[@]}"
+
+# Install PowerShell from AUR if AUR tooling is present.
+if cmd_present yay && [[ -x $omarchy_pkg_aur_add ]]; then
+  "$omarchy_pkg_aur_add" powershell-bin || true
+fi
+
+if cmd_present systemctl; then
+  sudo systemctl enable --now tailscaled.service
+  sudo systemctl enable --now keyd.service
+fi
+
+# Remap Caps Lock to Escape system-wide via keyd.
+sudo install -d -m 0755 /etc/keyd
+sudo tee /etc/keyd/default.conf >/dev/null <<'KEYD_CONF'
+[ids]
+*
+
+[main]
+capslock = esc
+KEYD_CONF
+
+if cmd_present systemctl; then
+  sudo systemctl restart keyd.service
+fi
+
+if [[ -x /usr/bin/zsh ]]; then
+  current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+  if [[ $current_shell != "/usr/bin/zsh" ]]; then
+    chsh -s /usr/bin/zsh "$USER"
+  fi
+fi
+
+# Arch tealdeer package provides the tldr command.
+if cmd_present tealdeer; then
+  tealdeer --update || true
+elif cmd_present tldr; then
+  tldr --update || true
+fi
+
+echo "local root apply complete"
+echo "log out and back in to use zsh as the default shell"
+echo "run 'sudo tailscale up' to authenticate tailscale"
