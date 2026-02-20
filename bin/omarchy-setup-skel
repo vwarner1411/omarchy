@@ -1,0 +1,331 @@
+#!/bin/bash
+
+# Build /etc/skel from a source user's current setup while removing sensitive data.
+# The resulting skeleton contains regular files only (no symlinks) and no direct
+# references into the source user's home path.
+
+set -euo pipefail
+
+print_usage() {
+  cat <<USAGE
+Usage: omarchy-setup-skel [options]
+
+Options:
+  --source-user <username>      Source user to clone (default: sudo caller)
+  --source-home <path>          Source home directory (overrides --source-user)
+  --skip-mise                   Skip ~/.local/share/mise runtimes/toolchains
+  --dry-run                     Build staging skeleton only, do not write /etc/skel
+  --help, -h                    Show this help
+USAGE
+}
+
+cmd_present() {
+  local cmd=$1
+
+  if command -v omarchy-cmd-present >/dev/null 2>&1; then
+    omarchy-cmd-present "$cmd"
+  else
+    command -v "$cmd" >/dev/null 2>&1
+  fi
+}
+
+copy_file_if_exists() {
+  local relative_path=$1
+  local source_path="$source_home/$relative_path"
+  local destination_path="$stage_dir/$relative_path"
+
+  if [[ -f $source_path ]]; then
+    mkdir -p "$(dirname "$destination_path")"
+    cp -aL "$source_path" "$destination_path"
+  fi
+}
+
+copy_dir_if_exists() {
+  local relative_path=$1
+  local source_path="$source_home/$relative_path/"
+  local destination_path="$stage_dir/$relative_path/"
+  local -a rsync_args
+
+  rsync_args=(-aL)
+
+  # Exclude large/sensitive browser/editor/session data during copy itself.
+  # This also avoids rsync failing on transient broken Singleton* symlinks.
+  if [[ $relative_path == ".config" ]]; then
+    rsync_args+=(
+      --exclude='BraveSoftware/***'
+      --exclude='chromium/***'
+      --exclude='google-chrome/***'
+      --exclude='Code/***'
+      --exclude='VSCodium/***'
+      --exclude='opencode/sessions/***'
+      --exclude='opencode/logs/***'
+      --exclude='opencode/cache/***'
+      --exclude='**/SingletonLock'
+      --exclude='**/SingletonSocket'
+      --exclude='**/SingletonCookie'
+    )
+  fi
+
+  if [[ -d ${source_path%/} ]]; then
+    mkdir -p "${destination_path%/}"
+    rsync "${rsync_args[@]}" "$source_path" "$destination_path"
+  fi
+}
+
+remove_sensitive_paths() {
+  local sensitive_paths=(
+    ".codex"
+    ".ssh"
+    ".gnupg"
+    ".aws"
+    ".kube"
+    ".docker"
+    ".pki"
+    ".netrc"
+    ".git-credentials"
+    ".local/share/claude"
+    ".local/share/keyrings"
+    ".local/share/opencode"
+    ".local/state"
+    ".config/Codex"
+    ".config/codex"
+    ".config/claude"
+    ".config/gh"
+    ".config/github-copilot"
+    ".config/BraveSoftware"
+    ".config/chromium"
+    ".config/google-chrome"
+    ".config/Code/Cache"
+    ".config/Code/CachedData"
+    ".config/Code/CachedExtensions"
+    ".config/Code/CachedExtensionVSIXs"
+    ".config/Code/Crashpad"
+    ".config/Code/GPUCache"
+    ".config/Code/Service Worker"
+    ".config/Code/User/workspaceStorage"
+    ".config/Code/User/globalStorage"
+    ".config/Code/User/History"
+    ".config/Code/User/sync"
+    ".config/VSCodium/Cache"
+    ".config/VSCodium/CachedData"
+    ".config/VSCodium/CachedExtensions"
+    ".config/VSCodium/GPUCache"
+    ".config/VSCodium/User/workspaceStorage"
+    ".config/VSCodium/User/globalStorage"
+    ".config/VSCodium/User/History"
+    ".config/opencode/sessions"
+    ".config/opencode/logs"
+    ".config/opencode/cache"
+  )
+
+  for relative_path in "${sensitive_paths[@]}"; do
+    rm -rf "$stage_dir/$relative_path"
+  done
+
+  # Remove common cache/session directories across apps.
+  find "$stage_dir/.config" -type d \( \
+    -name 'Cache' -o \
+    -name 'Code Cache' -o \
+    -name 'CachedData' -o \
+    -name 'GPUCache' -o \
+    -name 'Service Worker' -o \
+    -name 'Session Storage' -o \
+    -name 'Sessions' -o \
+    -name 'Local Storage' -o \
+    -name 'IndexedDB' -o \
+    -name 'blob_storage' -o \
+    -name 'workspaceStorage' \
+  \) -prune -exec rm -rf {} + 2>/dev/null || true
+
+  # Remove common auth/key artifacts if any slipped through.
+  find "$stage_dir" -type f \( \
+    -name 'id_rsa' -o \
+    -name 'id_ecdsa' -o \
+    -name 'id_ed25519' -o \
+    -name 'known_hosts' -o \
+    -name 'authorized_keys' -o \
+    -name '*.pem' -o \
+    -name '*.p12' -o \
+    -name '*.kdbx' -o \
+    -name '*.key' -o \
+    -name 'cookies.sqlite' -o \
+    -name 'Login Data' \
+  \) -delete 2>/dev/null || true
+}
+
+remove_home_refs() {
+  local source_home_sed=${source_home//|/\\|}
+  source_home_sed=${source_home_sed//&/\\&}
+
+  find "$stage_dir" -type f -print0 | while IFS= read -r -d '' file_path; do
+    if file "$file_path" | grep -qi 'text'; then
+      sed -i "s|$source_home_sed|~|g" "$file_path"
+    fi
+  done
+}
+
+verify_path() {
+  local verify_root=$1
+  local symlink_count
+  local home_ref_count
+
+  symlink_count=$(find "$verify_root" -type l | wc -l)
+  home_ref_count=$(grep -RIl --fixed-strings "$source_home" "$verify_root" 2>/dev/null | wc -l || true)
+
+  echo
+  echo "Verification for $verify_root:"
+  echo "  symlinks: $symlink_count"
+  echo "  files referencing source home path: $home_ref_count"
+
+  if [[ $symlink_count -ne 0 ]]; then
+    echo "Error: $verify_root still contains symlinks." >&2
+    exit 1
+  fi
+
+  if [[ $home_ref_count -ne 0 ]]; then
+    echo "Error: $verify_root still contains direct source-home references." >&2
+    exit 1
+  fi
+}
+
+original_args=("$@")
+if [[ $EUID -ne 0 ]]; then
+  exec sudo "$0" "${original_args[@]}"
+fi
+
+source_user="${SUDO_USER:-}"
+source_home=""
+include_mise=1
+dry_run=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --source-user)
+      source_user=${2:-}
+      if [[ -z $source_user ]]; then
+        echo "Error: --source-user requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --source-home)
+      source_home=${2:-}
+      if [[ -z $source_home ]]; then
+        echo "Error: --source-home requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --skip-mise)
+      include_mise=0
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    --help|-h)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option '$1'." >&2
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z $source_home ]]; then
+  if [[ -z $source_user ]]; then
+    echo "Error: pass --source-user or --source-home." >&2
+    exit 1
+  fi
+
+  source_entry=$(getent passwd "$source_user" || true)
+  if [[ -z $source_entry ]]; then
+    echo "Error: source user '$source_user' does not exist." >&2
+    exit 1
+  fi
+  source_home=$(echo "$source_entry" | cut -d: -f6)
+fi
+
+if [[ ! -d $source_home ]]; then
+  echo "Error: source home '$source_home' does not exist." >&2
+  exit 1
+fi
+
+if ! cmd_present rsync; then
+  echo "Error: rsync is required." >&2
+  exit 1
+fi
+
+timestamp=$(date +%Y%m%d-%H%M%S)
+stage_dir=$(mktemp -d /tmp/omarchy-skel-stage.XXXXXX)
+backup_dir="/var/backups/omarchy-skel-$timestamp"
+cleanup_stage=1
+trap '[[ $cleanup_stage -eq 1 ]] && rm -rf "$stage_dir"' EXIT
+
+echo "Source home: $source_home"
+echo "Stage path: $stage_dir"
+
+# Top-level shell/editor dotfiles.
+copy_file_if_exists .zshrc
+copy_file_if_exists .bashrc
+copy_file_if_exists .bash_profile
+copy_file_if_exists .profile
+copy_file_if_exists .XCompose
+copy_file_if_exists .nvimrc
+copy_file_if_exists .gitconfig
+copy_file_if_exists .tmux.conf
+
+# Config directories required for your Omarchy customizations.
+copy_dir_if_exists .config
+copy_dir_if_exists .local/bin
+copy_dir_if_exists .local/share/omarchy
+copy_dir_if_exists .local/share/fonts
+copy_dir_if_exists .local/share/nvim
+copy_dir_if_exists .local/share/applications
+copy_dir_if_exists .local/share/icons
+copy_dir_if_exists .local/share/powershell
+copy_dir_if_exists .oh-my-zsh
+
+if [[ $include_mise -eq 1 ]]; then
+  copy_dir_if_exists .local/share/mise
+fi
+
+# Remove private/auth/session data after copying.
+remove_sensitive_paths
+
+# Ensure there are no direct source-home references left in text configs.
+remove_home_refs
+
+# Symlinks are explicitly disallowed in /etc/skel.
+find "$stage_dir" -type l -delete
+
+verify_path "$stage_dir"
+
+if [[ $dry_run -eq 1 ]]; then
+  cleanup_stage=0
+  echo
+  echo "Dry run complete. /etc/skel was not modified."
+  echo "Stage was left in place for review: $stage_dir"
+  exit 0
+fi
+
+mkdir -p "$backup_dir"
+rsync -a /etc/skel/ "$backup_dir/skel.before/"
+
+rsync -a --delete "$stage_dir"/ /etc/skel/
+chown -R root:root /etc/skel
+
+find /etc/skel -type l -delete
+verify_path /etc/skel >/dev/null
+
+echo
+echo "Updated /etc/skel successfully."
+echo "Backup saved to: $backup_dir/skel.before"
+if [[ $include_mise -eq 0 ]] && [[ -d $source_home/.local/share/mise ]]; then
+  echo "Note: ~/.local/share/mise was skipped. Re-run without --skip-mise to clone user runtimes."
+fi
+echo "Next step: recreate the target user so they get the new skeleton."
