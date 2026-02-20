@@ -1,0 +1,417 @@
+#!/bin/bash
+
+# Create a minimal Limine dual-boot menu with a single Omarchy entry and a single Windows 11 entry.
+# This command:
+# 1) Backs up Limine-related config files
+# 2) Preserves the current Omarchy boot style and kernel cmdline
+# 3) Writes /boot/limine.conf with only Omarchy + Windows 11 entries
+
+set -euo pipefail
+
+cmd_present() {
+  local cmd=$1
+
+  if command -v omarchy-cmd-present >/dev/null 2>&1; then
+    omarchy-cmd-present "$cmd"
+  else
+    command -v "$cmd" >/dev/null 2>&1
+  fi
+}
+
+cmd_missing() {
+  local cmd=$1
+  ! cmd_present "$cmd"
+}
+
+print_usage() {
+  cat <<USAGE
+Usage: omarchy-setup-dualboot [--windows-esp /dev/...] [--windows-partuuid <guid>]
+
+Options:
+  --windows-esp       Use this ESP partition for Windows loader detection
+  --windows-partuuid  Use this Windows ESP GPT PARTUUID directly
+  --help              Show this help
+USAGE
+}
+
+backup_file() {
+  local source_path=$1
+  local relative_path
+  local target_dir
+
+  if [[ -e $source_path ]]; then
+    relative_path="${source_path#/}"
+    target_dir="$backup_dir/$(dirname "$relative_path")"
+    sudo mkdir -p "$target_dir"
+    sudo cp -a "$source_path" "$backup_dir/$relative_path"
+  fi
+}
+
+extract_entry_option() {
+  local limine_config=$1
+  local entry_name=$2
+  local option_name=$3
+
+  awk -v entry="$entry_name" -v option="$option_name" '
+    BEGIN { in_entry = 0 }
+    /^[[:space:]]*\/.*/ {
+      current = $0
+      sub(/^[[:space:]]*/, "", current)
+      if (current == entry) {
+        in_entry = 1
+      } else {
+        in_entry = 0
+      }
+      next
+    }
+    in_entry && $0 ~ "^[[:space:]]*" option ":[[:space:]]*" {
+      sub("^[[:space:]]*" option ":[[:space:]]*", "")
+      print
+      exit
+    }
+  ' "$limine_config"
+}
+
+extract_first_cmdline() {
+  local limine_config=$1
+
+  awk '
+    /^[[:space:]]*cmdline:[[:space:]]*/ {
+      sub(/^[[:space:]]*cmdline:[[:space:]]*/, "")
+      print
+      exit
+    }
+  ' "$limine_config"
+}
+
+find_omarchy_uki_path() {
+  local machine_id
+  local first_uki
+
+  if [[ -f /boot/EFI/Linux/omarchy_linux.efi ]]; then
+    echo "boot():/EFI/Linux/omarchy_linux.efi"
+    return 0
+  fi
+
+  if [[ -f /etc/machine-id ]]; then
+    machine_id="$(tr -d '\n' </etc/machine-id)"
+    if [[ -n $machine_id ]] && [[ -f /boot/EFI/Linux/${machine_id}_linux.efi ]]; then
+      echo "boot():/EFI/Linux/${machine_id}_linux.efi"
+      return 0
+    fi
+  fi
+
+  set +o pipefail
+  first_uki="$(find /boot/EFI/Linux -maxdepth 1 -type f -name '*.efi' 2>/dev/null | sort | head -n 1)"
+  set -o pipefail
+  if [[ -n ${first_uki:-} ]]; then
+    echo "boot():${first_uki#/boot}"
+    return 0
+  fi
+
+  return 1
+}
+
+strip_hash_suffix() {
+  local limine_path=$1
+  echo "${limine_path%%#*}"
+}
+
+find_windows_partuuid() {
+  local esp
+  local mount_dir
+  local partuuid
+
+  while IFS= read -r esp; do
+    [[ -n $esp ]] || continue
+
+    mount_dir="$(mktemp -d /tmp/omarchy-win-esp.XXXXXX)"
+    if sudo mount -o ro "$esp" "$mount_dir" >/dev/null 2>&1; then
+      if [[ -f $mount_dir/EFI/Microsoft/Boot/bootmgfw.efi ]]; then
+        partuuid="$(blkid -s PARTUUID -o value "$esp" 2>/dev/null || true)"
+        sudo umount "$mount_dir" >/dev/null 2>&1 || true
+        rmdir "$mount_dir" >/dev/null 2>&1 || true
+
+        if [[ -n $partuuid ]]; then
+          echo "$partuuid"
+          return 0
+        fi
+      fi
+      sudo umount "$mount_dir" >/dev/null 2>&1 || true
+    fi
+    rmdir "$mount_dir" >/dev/null 2>&1 || true
+  done < <(blkid -t TYPE=vfat -o device || true)
+
+  return 1
+}
+
+find_windows_partuuid_from_nvram() {
+  local nvram_line
+  local nvram_partuuid
+
+  if cmd_missing efibootmgr; then
+    return 1
+  fi
+
+  nvram_line="$(efibootmgr -v 2>/dev/null | grep -i 'EFI\\Microsoft\\Boot\\bootmgfw.efi' | head -n 1 || true)"
+  if [[ -z $nvram_line ]]; then
+    return 1
+  fi
+
+  nvram_partuuid="$(echo "$nvram_line" | sed -nE 's/.*HD\([0-9]+,GPT,([0-9A-Fa-f-]+).*/\1/p')"
+  if [[ -z $nvram_partuuid ]]; then
+    return 1
+  fi
+
+  echo "$nvram_partuuid"
+  return 0
+}
+
+validate_windows_esp() {
+  local esp=$1
+  local mount_dir
+
+  mount_dir="$(mktemp -d /tmp/omarchy-win-esp.XXXXXX)"
+  if ! sudo mount -o ro "$esp" "$mount_dir" >/dev/null 2>&1; then
+    rmdir "$mount_dir" >/dev/null 2>&1 || true
+    return 1
+  fi
+
+  if [[ -f $mount_dir/EFI/Microsoft/Boot/bootmgfw.efi ]]; then
+    sudo umount "$mount_dir" >/dev/null 2>&1 || true
+    rmdir "$mount_dir" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  sudo umount "$mount_dir" >/dev/null 2>&1 || true
+  rmdir "$mount_dir" >/dev/null 2>&1 || true
+  return 1
+}
+
+windows_esp=""
+windows_partuuid=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --windows-esp)
+    windows_esp=${2:-}
+    if [[ -z $windows_esp ]]; then
+      echo "Error: --windows-esp requires a value." >&2
+      exit 1
+    fi
+    shift 2
+    ;;
+  --windows-partuuid)
+    windows_partuuid=${2:-}
+    if [[ -z $windows_partuuid ]]; then
+      echo "Error: --windows-partuuid requires a value." >&2
+      exit 1
+    fi
+    shift 2
+    ;;
+  --help|-h)
+    print_usage
+    exit 0
+    ;;
+  *)
+    echo "Error: unknown option '$1'." >&2
+    print_usage
+    exit 1
+    ;;
+  esac
+done
+
+if [[ ! -d /sys/firmware/efi/efivars ]]; then
+  echo "Error: UEFI mode is required for this setup." >&2
+  exit 1
+fi
+
+if cmd_missing limine-update; then
+  echo "Error: limine-update command not found. Install Limine tooling first." >&2
+  exit 1
+fi
+
+boot_fstype="$(findmnt -n -o FSTYPE /boot 2>/dev/null || true)"
+if [[ $boot_fstype != "vfat" ]]; then
+  echo "Error: /boot must be mounted as vfat ESP. Found '$boot_fstype'." >&2
+  exit 1
+fi
+
+if [[ -n $windows_esp ]]; then
+  if ! validate_windows_esp "$windows_esp"; then
+    echo "Error: Windows EFI loader not found on '$windows_esp'." >&2
+    exit 1
+  fi
+  windows_partuuid="$(blkid -s PARTUUID -o value "$windows_esp" 2>/dev/null || true)"
+fi
+
+if [[ -z $windows_partuuid ]]; then
+  windows_partuuid="$(find_windows_partuuid_from_nvram || true)"
+fi
+
+if [[ -z $windows_partuuid ]]; then
+  windows_partuuid="$(find_windows_partuuid || true)"
+fi
+
+if [[ -z $windows_partuuid ]]; then
+  echo "Error: could not locate Windows EFI loader. Use --windows-esp or --windows-partuuid." >&2
+  exit 1
+fi
+
+windows_partuuid="$(echo "$windows_partuuid" | tr '[:upper:]' '[:lower:]')"
+
+omarchy_protocol=""
+omarchy_path=""
+
+if [[ -f /boot/limine.conf ]]; then
+  omarchy_protocol="$(extract_entry_option /boot/limine.conf "/Omarchy" "protocol" || true)"
+  omarchy_path="$(extract_entry_option /boot/limine.conf "/Omarchy" "path" || true)"
+fi
+
+if [[ $omarchy_protocol == "efi" ]] && [[ -n $omarchy_path ]]; then
+  :
+else
+  omarchy_path="$(find_omarchy_uki_path || true)"
+  if [[ -n $omarchy_path ]]; then
+    omarchy_protocol="efi"
+  else
+    omarchy_protocol="linux"
+    omarchy_path=""
+  fi
+fi
+
+cmdline=""
+if [[ -f /boot/limine.conf ]]; then
+  cmdline="$(extract_entry_option /boot/limine.conf "/Omarchy" "cmdline" || true)"
+  if [[ -z $cmdline ]]; then
+    cmdline="$(extract_first_cmdline /boot/limine.conf || true)"
+  fi
+fi
+
+if [[ -z $cmdline ]] && [[ -f /etc/default/limine ]]; then
+  # shellcheck disable=SC1091
+  source /etc/default/limine
+  cmdline="${KERNEL_CMDLINE[default]-}"
+fi
+
+if [[ -z $cmdline ]] && [[ -r /proc/cmdline ]]; then
+  cmdline="$(sed -E 's/(^| )BOOT_IMAGE=[^ ]+//g; s/^ +//; s/ +$//' /proc/cmdline)"
+fi
+
+if [[ -z $cmdline ]]; then
+  echo "Error: could not determine Linux kernel cmdline." >&2
+  exit 1
+fi
+
+if [[ $cmdline != *" quiet"* ]] && [[ $cmdline != quiet* ]]; then
+  cmdline="$cmdline quiet splash"
+fi
+cmdline="$(echo "$cmdline" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+
+if [[ $omarchy_protocol == "efi" ]]; then
+  omarchy_path_without_hash="$(strip_hash_suffix "$omarchy_path")"
+  if [[ $omarchy_path_without_hash == "boot():/"* ]]; then
+    omarchy_efi_file="/boot/${omarchy_path_without_hash#boot():/}"
+    if [[ ! -f $omarchy_efi_file ]]; then
+      echo "Error: Omarchy EFI file not found at '$omarchy_efi_file'." >&2
+      exit 1
+    fi
+  fi
+else
+  for required_boot_file in /boot/vmlinuz-linux /boot/initramfs-linux.img; do
+    if [[ ! -f $required_boot_file ]]; then
+      echo "Error: required boot file missing: $required_boot_file" >&2
+      exit 1
+    fi
+  done
+fi
+
+timestamp="$(date +%Y%m%d-%H%M%S)"
+backup_dir="/boot/backup-limine-$timestamp"
+sudo mkdir -p "$backup_dir"
+
+backup_file /boot/limine.conf
+backup_file /boot/limine.conf.old
+backup_file /etc/default/limine
+backup_file /boot/EFI/arch-limine/limine.conf
+backup_file /boot/EFI/BOOT/limine.conf
+backup_file /boot/EFI/limine/limine.conf
+backup_file /boot/limine/limine.conf
+
+if cmd_present efibootmgr; then
+  sudo sh -c "efibootmgr -v > '$backup_dir/efibootmgr.before.txt'" >/dev/null 2>&1 || true
+fi
+
+tmp_limine_config="$(mktemp /tmp/omarchy-limine.XXXXXX)"
+trap 'rm -f "$tmp_limine_config"' EXIT
+
+cat >"$tmp_limine_config" <<EOF
+### Generated by omarchy-setup-dualboot
+timeout: 5
+default_entry: 1
+interface_branding: Omarchy Bootloader
+interface_branding_color: 2
+hash_mismatch_panic: no
+
+term_background: 1a1b26
+backdrop: 1a1b26
+
+term_palette: 15161e;f7768e;9ece6a;e0af68;7aa2f7;bb9af7;7dcfff;a9b1d6
+term_palette_bright: 414868;f7768e;9ece6a;e0af68;7aa2f7;bb9af7;7dcfff;c0caf5
+term_foreground: c0caf5
+term_foreground_bright: c0caf5
+term_background_bright: 24283b
+
+/Omarchy
+EOF
+
+if [[ $omarchy_protocol == "efi" ]]; then
+  cat >>"$tmp_limine_config" <<EOF
+protocol: efi
+path: $omarchy_path
+cmdline: $cmdline
+EOF
+else
+  cat >>"$tmp_limine_config" <<EOF
+protocol: linux
+kernel_path: boot():/vmlinuz-linux
+cmdline: $cmdline
+EOF
+
+  if [[ -f /boot/intel-ucode.img ]]; then
+    echo "module_path: boot():/intel-ucode.img" >>"$tmp_limine_config"
+  fi
+
+  if [[ -f /boot/amd-ucode.img ]]; then
+    echo "module_path: boot():/amd-ucode.img" >>"$tmp_limine_config"
+  fi
+
+  echo "module_path: boot():/initramfs-linux.img" >>"$tmp_limine_config"
+fi
+
+cat >>"$tmp_limine_config" <<EOF
+
+/Windows 11
+protocol: efi
+path: guid(${windows_partuuid}):/EFI/Microsoft/Boot/bootmgfw.efi
+EOF
+
+sudo install -m 0644 "$tmp_limine_config" /boot/limine.conf
+
+for alternate_config in \
+  /boot/EFI/arch-limine/limine.conf \
+  /boot/EFI/BOOT/limine.conf \
+  /boot/EFI/limine/limine.conf \
+  /boot/limine/limine.conf; do
+  if [[ -f $alternate_config ]]; then
+    sudo rm -f "$alternate_config"
+  fi
+done
+
+echo
+echo "Dual-boot Limine config applied."
+echo "Backup stored at: $backup_dir"
+echo "Windows PARTUUID: $windows_partuuid"
+echo
+echo "Current /boot/limine.conf entries:"
+grep -E '^/' /boot/limine.conf
