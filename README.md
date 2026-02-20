@@ -109,7 +109,8 @@ Default behavior:
 - tracking branch: `upstream-master`
 - target branch: current branch
 - pushes `upstream-master` and merged target branch to `origin`
-- refuses to run if your git working tree is dirty
+- refuses to run if tracked files are dirty (staged/unstaged)
+- ignores untracked files (for example `.nvimlog`) and prints a warning
 
 Usage:
 

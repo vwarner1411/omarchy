@@ -42,10 +42,22 @@ USAGE
 }
 
 ensure_clean_worktree() {
-  if [[ -n $(git status --porcelain) ]]; then
+  local tracked_changes
+  local untracked_files
+
+  tracked_changes="$(git status --porcelain --untracked-files=no)"
+  untracked_files="$(git ls-files --others --exclude-standard)"
+
+  if [[ -n $tracked_changes ]]; then
     echo "Error: git working tree is not clean." >&2
-    echo "Commit/stash your changes before syncing upstream." >&2
+    echo "Commit/stash tracked changes before syncing upstream." >&2
     exit 1
+  fi
+
+  if [[ -n $untracked_files ]]; then
+    echo "Warning: untracked files detected but ignored for sync safety:"
+    echo "$untracked_files" | sed 's/^/  - /'
+    echo
   fi
 }
 
