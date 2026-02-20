@@ -98,17 +98,17 @@ Command: `omarchy-setup-sync-upstream`
 
 Goal:
 - Pull latest changes from `basecamp/omarchy`.
-- Maintain a local tracking branch for upstream (`upstream-master` by default).
+- Maintain a local tracking branch for upstream (`upstream-<upstream-branch>` by default).
 - Merge upstream changes into your custom branch using normal git merge semantics.
 - Preserve local commits and force conflict resolution where both sides changed the same lines.
 
 Default behavior:
 - upstream remote name: `upstream`
 - upstream URL: `https://github.com/basecamp/omarchy.git`
-- upstream branch: `master`
-- tracking branch: `upstream-master`
+- upstream branch: auto-detected from `upstream/HEAD` (currently `dev`)
+- tracking branch: `upstream-<upstream-branch>` (for example `upstream-dev`)
 - target branch: current branch
-- pushes `upstream-master` and merged target branch to `origin`
+- pushes tracking branch and merged target branch to `origin`
 - refuses to run if tracked files are dirty (staged/unstaged)
 - ignores untracked files (for example `.nvimlog`) and prints a warning
 
@@ -123,6 +123,7 @@ Common variants:
 ```bash
 omarchy-setup-sync-upstream --target-branch dev
 omarchy-setup-sync-upstream --no-push
+omarchy-setup-sync-upstream --upstream-branch master --tracking-branch upstream-master
 ```
 
 If a conflict occurs, the command exits and leaves your repo in normal merge-conflict state so you can resolve intentionally.

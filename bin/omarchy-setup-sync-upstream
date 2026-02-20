@@ -27,8 +27,8 @@ Usage: omarchy-setup-sync-upstream [options]
 
 Options:
   --target-branch <branch>      Branch to merge into (default: current branch)
-  --upstream-branch <branch>    Upstream branch to track (default: master)
-  --tracking-branch <branch>    Local branch mirroring upstream (default: upstream-master)
+  --upstream-branch <branch>    Upstream branch to track (default: upstream remote HEAD)
+  --tracking-branch <branch>    Local branch mirroring upstream (default: upstream-<upstream-branch>)
   --upstream-remote <name>      Remote name for upstream (default: upstream)
   --upstream-url <url>          Upstream git URL (default: https://github.com/basecamp/omarchy.git)
   --no-push                     Do not push tracking/target branches to origin
@@ -37,7 +37,7 @@ Options:
 Examples:
   omarchy-setup-sync-upstream
   omarchy-setup-sync-upstream --target-branch dev
-  omarchy-setup-sync-upstream --upstream-branch master --tracking-branch upstream-master
+  omarchy-setup-sync-upstream --upstream-branch dev --tracking-branch upstream-dev
 USAGE
 }
 
@@ -62,8 +62,8 @@ ensure_clean_worktree() {
 }
 
 target_branch=""
-upstream_branch="master"
-tracking_branch="upstream-master"
+upstream_branch=""
+tracking_branch=""
 upstream_remote="upstream"
 upstream_url="https://github.com/basecamp/omarchy.git"
 push_changes=1
@@ -153,8 +153,6 @@ echo "Syncing upstream repository..."
 echo "  target branch:   $target_branch"
 echo "  upstream remote: $upstream_remote"
 echo "  upstream url:    $upstream_url"
-echo "  upstream branch: $upstream_branch"
-echo "  tracking branch: $tracking_branch"
 echo
 
 if git remote get-url "$upstream_remote" >/dev/null 2>&1; then
@@ -171,6 +169,26 @@ fi
 echo "Fetching remotes..."
 git fetch "$upstream_remote"
 git fetch origin
+
+if [[ -z $upstream_branch ]]; then
+  remote_head_ref="$(git symbolic-ref --quiet "refs/remotes/$upstream_remote/HEAD" || true)"
+  if [[ -n $remote_head_ref ]]; then
+    upstream_branch="${remote_head_ref#refs/remotes/$upstream_remote/}"
+  else
+    echo "Error: could not determine '$upstream_remote' default branch from remote HEAD." >&2
+    echo "Pass --upstream-branch explicitly." >&2
+    exit 1
+  fi
+fi
+
+if [[ -z $tracking_branch ]]; then
+  tracking_branch="upstream-${upstream_branch//\//-}"
+fi
+
+echo "Resolved sync targets:"
+echo "  upstream branch: $upstream_branch"
+echo "  tracking branch: $tracking_branch"
+echo
 
 if ! git show-ref --verify --quiet "refs/remotes/$upstream_remote/$upstream_branch"; then
   echo "Error: branch '$upstream_branch' not found on remote '$upstream_remote'." >&2
