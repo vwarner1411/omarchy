@@ -24,11 +24,17 @@ esac
 if omarchy-pkg-add $package; then
   # Copy custom desktop entry for alacritty with X-TerminalArg* keys
   if [[ $package == "alacritty" ]]; then
+    app_source="${OMARCHY_PATH:-$(cd "$(dirname "$0")/.." && pwd)}/applications/Alacritty.desktop"
     mkdir -p ~/.local/share/applications
-    cp $OMARCHY_PATH/applications/Alacritty.desktop ~/.local/share/applications/
+    if [[ ! -f $app_source ]]; then
+      echo "Missing desktop entry: $app_source"
+      exit 1
+    fi
+    cp "$app_source" ~/.local/share/applications/
   fi
 
   # Update xdg-terminals.list to prioritize the proper terminal
+  mkdir -p ~/.config
   cat >~/.config/xdg-terminals.list <<EOF
 # Terminal emulator preference order for xdg-terminal-exec
 # The first found and valid terminal will be used

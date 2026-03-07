@@ -111,10 +111,13 @@ start_screenrecording() {
     sleep 0.2
   done
 
-  if kill -0 $pid 2>/dev/null; then
+  if kill -0 $pid 2>/dev/null && [[ -f $filename ]]; then
     echo "$filename" >"$RECORDING_FILE"
     toggle_screenrecording_indicator
+    return 0
   fi
+
+  return 1
 }
 
 stop_screenrecording() {
@@ -146,7 +149,7 @@ toggle_screenrecording_indicator() {
 }
 
 screenrecording_active() {
-  pgrep -f "^gpu-screen-recorder" >/dev/null
+  pgrep -f "^gpu-screen-recorder" >/dev/null || pgrep -f "WebcamOverlay" >/dev/null
 }
 
 trim_first_frame() {
@@ -164,7 +167,11 @@ trim_first_frame() {
 }
 
 if screenrecording_active; then
-  stop_screenrecording
+  if pgrep -f "WebcamOverlay" >/dev/null && ! pgrep -f "^gpu-screen-recorder" >/dev/null; then
+    cleanup_webcam
+  else
+    stop_screenrecording
+  fi
 elif [[ $STOP_RECORDING == "true" ]]; then
   exit 1
 else
