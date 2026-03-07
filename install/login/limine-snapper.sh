@@ -54,14 +54,14 @@ EOF
   sudo cp "$OMARCHY_PATH/default/limine/default.conf" /etc/default/limine
   sudo sed -i "s|@@CMDLINE@@|$escaped_cmdline|g" /etc/default/limine
 
+  # Append any drop-in kernel cmdline configs (from hardware fix scripts, etc.)
+  for dropin in /etc/limine-entry-tool.d/*.conf; do
+    [[ -f $dropin ]] && sudo tee -a /etc/default/limine <"$dropin" >/dev/null
+  done
+
   # UKI and EFI fallback are EFI only
   if [[ -z $EFI ]]; then
     sudo sed -i '/^ENABLE_UKI=/d; /^ENABLE_LIMINE_FALLBACK=/d' /etc/default/limine
-  fi
-
-  # Create a canonical config file if needed.
-  if [[ ! -f /boot/limine.conf ]]; then
-    sudo cp "$OMARCHY_PATH/default/limine/limine.conf" /boot/limine.conf
   fi
 
   # Remove alternative config locations that can shadow /boot/limine.conf.
@@ -69,6 +69,9 @@ EOF
   sudo rm -f /boot/EFI/BOOT/limine.conf
   sudo rm -f /boot/EFI/limine/limine.conf
   sudo rm -f /boot/limine/limine.conf
+
+  # Rebuild the canonical config knowing limine-update will repopulate the entries.
+  sudo cp "$OMARCHY_PATH/default/limine/limine.conf" /boot/limine.conf
 
   # Match Snapper configs if not installing from the ISO
   if [[ -z ${OMARCHY_CHROOT_INSTALL:-} ]]; then
@@ -143,25 +146,15 @@ EOF
   echo "module_path: boot():/initramfs-linux.img" | sudo tee -a /boot/limine.conf >/dev/null
 fi
 
+# Verify that limine-update actually added boot entries
+if [[ -f /boot/limine.conf ]] && ! grep -q "^/+" /boot/limine.conf; then
+  echo "Error: limine-update failed to add boot entries to /boot/limine.conf" >&2
+  exit 1
+fi
+
 if [[ -n $EFI ]] && efibootmgr &>/dev/null; then
   # Remove the archinstall-created Limine entry
   while IFS= read -r bootnum; do
     sudo efibootmgr -b "$bootnum" -B >/dev/null 2>&1
   done < <(efibootmgr | grep -E "^Boot[0-9]{4}\*? Arch Linux Limine" | sed 's/^Boot\([0-9]\{4\}\).*/\1/')
 fi
-
-# Move this to a utility to allow manual activation
-# if [[ -n $EFI ]] && efibootmgr &>/dev/null &&
-#   ! cat /sys/class/dmi/id/bios_vendor 2>/dev/null | grep -qi "American Megatrends" &&
-#   ! cat /sys/class/dmi/id/bios_vendor 2>/dev/null | grep -qi "Apple"; then
-#
-#   uki_file=$(find /boot/EFI/Linux/ -name "omarchy*.efi" -printf "%f\n" 2>/dev/null | head -1)
-#
-#   if [[ -n "$uki_file" ]]; then
-#     sudo efibootmgr --create \
-#       --disk "$(findmnt -n -o SOURCE /boot | sed 's/p\?[0-9]*$//')" \
-#       --part "$(findmnt -n -o SOURCE /boot | grep -o 'p\?[0-9]*$' | sed 's/^p//')" \
-#       --label "Omarchy" \
-#       --loader "\\EFI\\Linux\\$uki_file"
-#   fi
-# fi

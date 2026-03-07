@@ -1,14 +1,14 @@
 NVIDIA="$(lspci | grep -i 'nvidia')"
 
-if [[ -n "$NVIDIA" ]]; then
+if [[ -n $NVIDIA ]]; then
   # Check which kernel is installed and set appropriate headers package
   KERNEL_HEADERS="$(pacman -Qq | grep -E '^linux(-zen|-lts|-hardened)?-headers$' | head -1)"
   if [[ -z $KERNEL_HEADERS ]]; then
     KERNEL_HEADERS="linux-headers"
   fi
 
-  # Turing+ (GTX 16xx, RTX 20xx-50xx, Quadro RTX, datacenter A/H/T/L series) have GSP firmware
-  if echo "$NVIDIA" | grep -qE "GTX 16[0-9]{2}|RTX [2-5][0-9]{3}|Quadro RTX|RTX A[0-9]{4}|A[1-9][0-9]{2}|H[1-9][0-9]{2}|T4|L[0-9]+"; then
+  # Turing+ (GTX 16xx, RTX 20xx-50xx, RTX Pro, Quadro RTX, datacenter A/H/T/L series) have GSP firmware
+  if echo "$NVIDIA" | grep -qE "GTX 16[0-9]{2}|RTX [2-5][0-9]{3}|RTX PRO [0-9]{4}|Quadro RTX|RTX A[0-9]{4}|A[1-9][0-9]{2}|H[1-9][0-9]{2}|T4|L[0-9]+"; then
     PACKAGES=(nvidia-open-dkms nvidia-utils lib32-nvidia-utils libva-nvidia-driver)
     CONFLICTING_PACKAGES=(nvidia-dkms nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils)
     GPU_ARCH="turing_plus"
@@ -20,7 +20,7 @@ if [[ -n "$NVIDIA" ]]; then
   fi
 
   # Bail if no supported GPU
-  if [[ -z "${PACKAGES+x}" ]]; then
+  if [[ -z ${PACKAGES+x} ]]; then
     echo "No compatible driver for your NVIDIA GPU. See: https://wiki.archlinux.org/title/NVIDIA"
     exit 0
   fi
@@ -32,7 +32,7 @@ if [[ -n "$NVIDIA" ]]; then
       remove_packages+=("$pkg")
     fi
   done
-  if [[ ${#remove_packages[@]} -gt 0 ]]; then
+  if (( ${#remove_packages[@]} > 0 )); then
     sudo pacman -Rns --noconfirm "${remove_packages[@]}"
   fi
 
@@ -57,7 +57,7 @@ EOF
   mkdir -p "$HOME/.config/hypr"
   touch "$HOME/.config/hypr/envs.conf"
 
-  if [[ "$GPU_ARCH" == "turing_plus" ]]; then
+  if [[ $GPU_ARCH == "turing_plus" ]]; then
     # Turing+ (RTX 20xx, GTX 16xx, and newer) with GSP firmware support
     if ! grep -q "NVIDIA (Turing+ with GSP firmware)" "$HOME/.config/hypr/envs.conf"; then
       cat >>"$HOME/.config/hypr/envs.conf" <<'EOF'
@@ -68,7 +68,7 @@ env = LIBVA_DRIVER_NAME,nvidia
 env = __GLX_VENDOR_LIBRARY_NAME,nvidia
 EOF
     fi
-  elif [[ "$GPU_ARCH" == "maxwell_pascal_volta" ]]; then
+  elif [[ $GPU_ARCH == "maxwell_pascal_volta" ]]; then
     # Maxwell/Pascal/Volta (GTX 9xx/10xx, GT 10xx, Quadro P/M/GV, MX series, Titan X/Xp/V) lack GSP firmware
     if ! grep -q "NVIDIA (Maxwell/Pascal/Volta without GSP firmware)" "$HOME/.config/hypr/envs.conf"; then
       cat >>"$HOME/.config/hypr/envs.conf" <<'EOF'

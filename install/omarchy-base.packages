@@ -18,6 +18,7 @@ brightnessctl
 btop
 chromium
 clang
+claude-code
 curl
 cups
 cups-browsed
@@ -70,6 +71,7 @@ iotop
 jq
 keyd
 kdenlive
+kernel-modules-hook
 kitty
 kvantum-qt5
 lazydocker
@@ -84,6 +86,7 @@ libreoffice-fresh
 llvm
 localsend
 luarocks
+makima-bin
 mako
 man-db
 mariadb-libs
@@ -98,7 +101,6 @@ nfs-utils
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
-noto-fonts-extra
 nss-mdns
 nvim
 obs-studio
