@@ -24,10 +24,6 @@ if [[ -d $ZSH ]]; then
   fi
 fi
 
-# Drop Oh My Zsh git aliases that clash with local helpers and aren't wanted.
-unalias ga 2>/dev/null || true
-unalias gd 2>/dev/null || true
-
 export BAT_THEME=ansi
 if [[ -n $EDITOR ]]; then
   export SUDO_EDITOR="$EDITOR"
@@ -39,7 +35,10 @@ if [[ -f $HOME/.local/share/omarchy/default/bash/aliases ]]; then
 fi
 
 if [[ -f $HOME/.local/share/omarchy/default/bash/functions ]]; then
-  source "$HOME/.local/share/omarchy/default/bash/functions"
+  () {
+    setopt localoptions no_aliases
+    source "$HOME/.local/share/omarchy/default/bash/functions"
+  }
 fi
 
 # Aliases carried from your dotfiles setup.
