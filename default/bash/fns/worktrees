@@ -1,7 +1,7 @@
 # Create a new worktree and branch from within current git directory.
-ga() {
+gwta() {
   if [[ -z "$1" ]]; then
-    echo "Usage: ga [branch name]"
+    echo "Usage: gwta [branch name]"
     return 1
   fi
 
@@ -15,7 +15,7 @@ ga() {
 }
 
 # Remove worktree and branch from within active worktree directory.
-gd() {
+gwtd() {
   if gum confirm "Remove worktree and branch?"; then
     local cwd base branch root
 
@@ -34,3 +34,10 @@ gd() {
     fi
   fi
 }
+
+# Keep the original short names in bash-only shells, but avoid colliding
+# with common zsh git aliases like `ga` and `gd`.
+if [[ -n ${BASH_VERSION:-} ]]; then
+  eval 'ga() { gwta "$@"; }'
+  eval 'gd() { gwtd "$@"; }'
+fi
