@@ -5,19 +5,20 @@
 
 set -euo pipefail
 
-OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+limine_config="/boot/limine.conf"
+legacy_uki="/boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi"
+restore_dualboot=false
+windows_partuuid=""
 
-if [[ -f /boot/EFI/Linux/omarchy_linux.efi ]] && [[ -f /boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi ]]; then
-  echo "Cleanup extra UKI"
-  sudo rm -f /boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi
-fi
-
-if [[ -f /boot/limine.conf ]] &&
-  grep -Eqi '^/Windows 11$|EFI/Microsoft/Boot/bootmgfw\.efi' /boot/limine.conf &&
-  omarchy-cmd-present omarchy-setup-dualboot; then
-  echo "Preserving dual-boot Limine config"
-  omarchy-setup-dualboot
-  exit
+if sudo test -f "$limine_config" &&
+  sudo grep -Eqi '^/Windows 11$|EFI/Microsoft/Boot/bootmgfw\.efi' "$limine_config"; then
+  restore_dualboot=true
+  windows_partuuid="$(
+    sudo grep -Eio 'guid\([0-9a-f-]+\):/EFI/Microsoft/Boot/bootmgfw\.efi' "$limine_config" |
+      head -1 |
+      sed -E 's/^guid\(([0-9a-f-]+)\):.*/\1/I' || true
+  )"
 fi
 
 if [[ -d /sys/firmware/efi ]]; then
@@ -28,22 +29,49 @@ if [[ -d /sys/firmware/efi ]]; then
   fi
 fi
 
-if [[ ! -f /boot/limine.conf ]]; then
-  echo "Error: /boot/limine.conf does not exist. Refusing to refresh Limine." >&2
+if ! sudo test -f "$limine_config"; then
+  echo "Error: $limine_config does not exist. Refusing to refresh Limine." >&2
   exit 1
 fi
 
 echo "Resetting limine config"
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
-sudo cp -a /boot/limine.conf "/boot/limine.conf.bak.$timestamp"
+backup_config="${limine_config}.bak.$timestamp"
+sudo cp -a "$limine_config" "$backup_config"
 
-sudo cp "$OMARCHY_PATH/default/limine/limine.conf" /boot/limine.conf
+if sudo test -f /boot/EFI/Linux/omarchy_linux.efi && sudo test -f "$legacy_uki"; then
+  echo "Cleanup extra UKI"
+  sudo rm -f "$legacy_uki"
+fi
+
+sudo cp "$OMARCHY_PATH/default/limine/limine.conf" "$limine_config"
 
 sudo limine-update
 sudo limine-snapper-sync
 
-if ! grep -q '^/' /boot/limine.conf; then
-  echo "Error: Limine refresh produced no boot entries. Backup is /boot/limine.conf.bak.$timestamp" >&2
+if [[ $restore_dualboot == "true" ]]; then
+  if omarchy-cmd-missing omarchy-setup-dualboot; then
+    echo "Error: Windows was present before refresh, but omarchy-setup-dualboot is unavailable." >&2
+    echo "Backup is $backup_config" >&2
+    exit 1
+  fi
+
+  echo "Restoring dual-boot Limine menu"
+  if [[ -n $windows_partuuid ]]; then
+    omarchy-setup-dualboot --windows-partuuid "$windows_partuuid"
+  else
+    omarchy-setup-dualboot
+  fi
+fi
+
+if ! sudo grep -q '^/' "$limine_config"; then
+  echo "Error: Limine refresh produced no boot entries. Backup is $backup_config" >&2
+  exit 1
+fi
+
+if [[ $restore_dualboot == "true" ]] &&
+  { ! sudo grep -q '^/Omarchy$' "$limine_config" || ! sudo grep -q '^/Windows 11$' "$limine_config"; }; then
+  echo "Error: Limine refresh did not preserve both dual-boot entries. Backup is $backup_config" >&2
   exit 1
 fi

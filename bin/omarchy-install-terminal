@@ -29,16 +29,11 @@ echo "Installing $package..."
 if omarchy-pkg-add $package; then
   # Copy custom desktop entries with X-TerminalArg* keys
   if [[ $package == "alacritty" ]]; then
-    app_source="${OMARCHY_PATH:-$(cd "$(dirname "$0")/.." && pwd)}/applications/Alacritty.desktop"
     mkdir -p ~/.local/share/applications
-    if [[ ! -f $app_source ]]; then
-      echo "Missing desktop entry: $app_source"
-      exit 1
-    fi
-    cp "$app_source" ~/.local/share/applications/
+    cp "$OMARCHY_PATH/default/alacritty/$desktop_id" ~/.local/share/applications/
   elif [[ $package == "foot" ]]; then
     mkdir -p ~/.local/share/applications
-    cp "$OMARCHY_PATH/default/foot/$desktop_id" ~/.local/share/applications/
+    cp "$OMARCHY_PATH/applications/$desktop_id" ~/.local/share/applications/
   fi
 
   # Copy default config for optional terminals when missing

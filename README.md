@@ -6,23 +6,21 @@ Upstream Omarchy info: [omarchy.org](https://omarchy.org)
 
 ## What Changed In This Fork
 
-- Online install/update defaults target this fork (`warnerva/omarchy`) instead of upstream.
+- Supports linking Quattro's package-backed install to this fork for local command and config overrides.
 - Added `omarchy-setup-dualboot` for resilient Limine dual-boot setup.
 - Added `omarchy-setup-skel` to build a sanitized `/etc/skel` from an existing user.
 - Added `omarchy-setup-sync-upstream` for controlled upstream merge syncs.
 - Added `inplace-luks-limine-windows-runbook.md` for optional in-place LUKS conversion planning.
 
-## Repo Defaults
+## Quattro Checkout Model
 
-- `OMARCHY_REPO` default: `warnerva/omarchy`
-- `OMARCHY_REF` default: `master`
-
-You can override at runtime:
+Omarchy Quattro installs production files from Arch packages under `/usr/share/omarchy`; regular updates do not pull this Git fork. Keep the fork checkout at `/home/warnerva/programming/omarchy` and link it after the Quattro package upgrade:
 
 ```bash
-export OMARCHY_REPO=basecamp/omarchy
-export OMARCHY_REF=master
+omarchy dev link /home/warnerva/programming/omarchy --no-reboot
 ```
+
+The link sets `OMARCHY_PATH` and sudo's Omarchy command path after reboot. Fixed package-owned paths under `/etc`, `/usr/lib/systemd`, and similar locations still require a package build rather than a development link.
 
 ## Key Commands Added
 
@@ -75,7 +73,7 @@ By default this includes:
 - `.oh-my-zsh`
 - `.local/share/nvim`
 - `.local/share/mise` (toolchains/runtimes)
-- Omarchy/fonts/desktop launcher/icon data
+- fonts, desktop launcher, and icon data
 
 If you want to skip copying `mise` runtimes:
 
@@ -105,8 +103,8 @@ Goal:
 Default behavior:
 - upstream remote name: `upstream`
 - upstream URL: `https://github.com/basecamp/omarchy.git`
-- upstream branch: auto-detected from `upstream/HEAD` (currently `dev`)
-- tracking branch: `upstream-<upstream-branch>` (for example `upstream-dev`)
+- upstream branch: auto-detected from `upstream/HEAD` (currently `quattro`)
+- tracking branch: `upstream-<upstream-branch>` (for example `upstream-quattro`)
 - target branch: current branch
 - pushes tracking branch and merged target branch to `origin`
 - refuses to run if tracked files are dirty (staged/unstaged)
@@ -182,9 +180,9 @@ Override source:
 
 Removed by local root apply:
 
-- `tldr`
-- `eza`
 - `alacritty`
+
+`eza` remains installed because it is part of the Quattro package set, but the zsh overrides route the `ls` aliases to `lsd`. `tealdeer` replaces `tldr` while satisfying the same package dependency.
 
 Added by local root apply (pacman):
 
@@ -299,6 +297,76 @@ Current local branding/theme state captured into user config and inherited throu
 - `default/` - default assets/templates used across the system
 - `themes/` - theme packs and color definitions
 - `migrations/` - versioned post-install migration scripts
+
+## The Omarchy Manual
+
+The manual lives in [`manual/`](manual/), which is its authoritative source. It's
+mirrored to [learn.omacom.io](https://learn.omacom.io/2/the-omarchy-manual), where
+its screenshots are also hosted.
+
+- [Welcome to Omarchy!](manual/01-welcome-to-omarchy.md)
+
+**The Basics**
+
+- [Getting Started](manual/02-getting-started.md)
+- [Coming From Mac or Windows](manual/03-coming-from-mac-or-windows.md)
+- [Navigation](manual/04-navigation.md)
+- [The top bar](manual/05-the-top-bar.md)
+- [Themes](manual/06-themes.md)
+- [Hotkeys](manual/07-hotkeys.md)
+- [Unified Clipboard & History](manual/08-unified-clipboard-history.md)
+- [Reminders](manual/09-reminders.md)
+- [Notices](manual/10-notices.md)
+- [Text Extraction & Dictation](manual/11-text-extraction-dictation.md)
+- [Screenshots & Recording](manual/12-screenshots-recording.md)
+- [Toggles, idle & screensaver](manual/13-toggles-idle-screensaver.md)
+- [Omarchy CLI](manual/14-omarchy-cli.md)
+
+**The Applications**
+
+- [Terminal](manual/15-terminal.md)
+- [Neovim](manual/16-neovim.md)
+- [AI](manual/17-ai.md)
+- [Development Tools](manual/18-development-tools.md)
+- [Shell Tools](manual/19-shell-tools.md)
+- [Shell Functions](manual/20-shell-functions.md)
+- [TUIs](manual/21-tuis.md)
+- [GUIs](manual/22-guis.md)
+- [Browsers](manual/23-browsers.md)
+- [Commercial apps/services](manual/24-commercial-apps-services.md)
+- [Web Apps](manual/25-web-apps.md)
+- [Gaming](manual/26-gaming.md)
+- [Filling out PDFs](manual/27-filling-out-pdfs.md)
+- [Windows VM](manual/28-windows-vm.md)
+- [Other Packages](manual/29-other-packages.md)
+
+**Configuration**
+
+- [Updates](manual/30-updates.md)
+- [Dotfiles](manual/31-dotfiles.md)
+- [Shell plugins](manual/32-shell-plugins.md)
+- [Monitors](manual/33-monitors.md)
+- [Keyboard, Mouse, Trackpad](manual/34-keyboard-mouse-trackpad.md)
+- [Networking](manual/35-networking.md)
+- [System sleep](manual/36-system-sleep.md)
+- [Hardware authentication](manual/37-hardware-authentication.md)
+- [Fonts](manual/38-fonts.md)
+- [Backgrounds](manual/39-backgrounds.md)
+- [Prompt](manual/40-prompt.md)
+- [Branding](manual/41-branding.md)
+- [Common tweaks](manual/42-common-tweaks.md)
+- [Making your own theme](manual/43-making-your-own-theme.md)
+
+**The Rest**
+
+- [Mac support](manual/44-mac-support.md)
+- [Troubleshooting](manual/45-troubleshooting.md)
+- [FAQ](manual/46-faq.md)
+- [System snapshots](manual/47-system-snapshots.md)
+- [Security](manual/48-security.md)
+- [Omarchy on...](manual/49-omarchy-on.md)
+- [Dual Boot Install](manual/50-dual-boot-install.md)
+- [Unattended Installs](manual/51-unattended-installs.md)
 
 ## License
 

@@ -14,11 +14,7 @@ set -euo pipefail
 cmd_present() {
   local cmd=$1
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$cmd"
-  else
-    command -v "$cmd" >/dev/null 2>&1
-  fi
+  omarchy-cmd-present "$cmd"
 }
 
 cmd_missing() {
@@ -213,7 +209,7 @@ validate_windows_esp() {
 windows_esp=""
 windows_partuuid=""
 
-while [[ $# -gt 0 ]]; do
+while (( $# > 0 )); do
   case "$1" in
   --windows-esp)
     windows_esp=${2:-}
@@ -284,7 +280,11 @@ if [[ -z $windows_partuuid ]]; then
   exit 1
 fi
 
-windows_partuuid="$(echo "$windows_partuuid" | tr '[:upper:]' '[:lower:]')"
+windows_partuuid="${windows_partuuid,,}"
+if [[ ! $windows_partuuid =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+  echo "Error: Windows PARTUUID '$windows_partuuid' is not a valid GPT GUID." >&2
+  exit 1
+fi
 
 omarchy_protocol=""
 omarchy_path=""
@@ -376,7 +376,9 @@ cat >"$tmp_limine_config" <<EOF
 timeout: 5
 default_entry: 1
 interface_branding: Omarchy Bootloader
-interface_branding_color: 2
+interface_branding_color: 9ece6a
+interface_help_color: 9ece6a
+interface_help_color_bright: 9ece6a
 hash_mismatch_panic: no
 
 term_background: 1a1b26

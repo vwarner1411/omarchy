@@ -1,43 +1,21 @@
 -- Learn how to configure Hyprland: https://wiki.hypr.land/Configuring/Start/
 
-local home = os.getenv("HOME") or ""
+-- Omarchy's bootstrap keeps path setup out of this user config.
+dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/bootstrap.lua")
 
--- Hyprland recommends require() for split Lua configs. These two roots let us
--- load user modules from ~/.config and Omarchy defaults from $OMARCHY_PATH.
-package.path = home .. "/.config/?.lua;" .. (os.getenv("OMARCHY_PATH") or (home .. "/.local/share/omarchy")) .. "/?.lua;" .. package.path
+-- Disable all Omarchy default bindings. Add your own in hypr/bindings.lua.
+-- omarchy_default_bindings = false
+--
+-- Or disable only bindings for Omarchy's preinstalled apps/web apps while
+-- keeping core window-manager bindings:
+-- omarchy_preinstalled_bindings = false
 
-local paths = require("default.hypr.paths")
+-- Load Omarchy defaults.
+require("default.hypr.omarchy")
 
-local function require_file_if_exists(path, module)
-  local file = io.open(path, "r")
-  if file then
-    file:close()
-    require(module)
-  end
-end
-
--- Use Omarchy defaults, but don't edit these directly.
-require("default.hypr.autostart")
-require("default.hypr.bindings.media")
-require("default.hypr.bindings.clipboard")
-require("default.hypr.bindings.tiling-v2")
-require("default.hypr.bindings.utilities")
-require("default.hypr.envs")
-require_file_if_exists(paths.config_home .. "/hypr/envs.lua", "hypr.envs")
-require("default.hypr.looknfeel")
-require("default.hypr.input")
-require("default.hypr.windows")
-
--- Current theme overrides.
-do
-  local theme = io.open(paths.config_home .. "/omarchy/current/theme/hyprland.lua", "r")
-  if theme then
-    theme:close()
-    require("omarchy.current.theme.hyprland")
-  end
-end
-
--- Change your own setup in these files and override defaults.
+-- Put your personal overrides in these files. They're loaded after Omarchy's
+-- defaults so package updates can improve the defaults without rewriting your
+-- ~/.config/hypr files.
 require("hypr.monitors")
 require("hypr.input")
 require("hypr.bindings")
@@ -48,4 +26,4 @@ require("hypr.autostart")
 require("default.hypr.toggles")
 
 -- Add any other personal Hyprland configuration below.
--- hl.window_rule({ match = { class = "qemu" }, workspace = "5" })
+-- o.window("qemu", { workspace = "5" })

@@ -25,11 +25,7 @@ USAGE
 cmd_present() {
   local cmd=$1
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$cmd"
-  else
-    command -v "$cmd" >/dev/null 2>&1
-  fi
+  omarchy-cmd-present "$cmd"
 }
 
 copy_file_if_exists() {
@@ -180,19 +176,19 @@ verify_path() {
   echo "  symlinks: $symlink_count"
   echo "  files referencing source home path: $home_ref_count"
 
-  if [[ $symlink_count -ne 0 ]]; then
+  if (( symlink_count != 0 )); then
     echo "Error: $verify_root still contains symlinks." >&2
     exit 1
   fi
 
-  if [[ $home_ref_count -ne 0 ]]; then
+  if (( home_ref_count != 0 )); then
     echo "Error: $verify_root still contains direct source-home references." >&2
     exit 1
   fi
 }
 
 original_args=("$@")
-if [[ $EUID -ne 0 ]]; then
+if (( EUID != 0 )); then
   exec sudo "$0" "${original_args[@]}"
 fi
 
@@ -201,7 +197,7 @@ source_home=""
 include_mise=1
 dry_run=0
 
-while [[ $# -gt 0 ]]; do
+while (( $# > 0 )); do
   case "$1" in
     --source-user)
       source_user=${2:-}
@@ -267,7 +263,7 @@ timestamp=$(date +%Y%m%d-%H%M%S)
 stage_dir=$(mktemp -d /tmp/omarchy-skel-stage.XXXXXX)
 backup_dir="/var/backups/omarchy-skel-$timestamp"
 cleanup_stage=1
-trap '[[ $cleanup_stage -eq 1 ]] && rm -rf "$stage_dir"' EXIT
+trap '(( cleanup_stage != 1 )) || rm -rf "$stage_dir"' EXIT
 
 echo "Source home: $source_home"
 echo "Stage path: $stage_dir"
@@ -285,7 +281,6 @@ copy_file_if_exists .tmux.conf
 # Config directories required for your Omarchy customizations.
 copy_dir_if_exists .config
 copy_dir_if_exists .local/bin
-copy_dir_if_exists .local/share/omarchy
 copy_dir_if_exists .local/share/fonts
 copy_dir_if_exists .local/share/nvim
 copy_dir_if_exists .local/share/applications
@@ -293,7 +288,7 @@ copy_dir_if_exists .local/share/icons
 copy_dir_if_exists .local/share/powershell
 copy_dir_if_exists .oh-my-zsh
 
-if [[ $include_mise -eq 1 ]]; then
+if (( include_mise == 1 )); then
   copy_dir_if_exists .local/share/mise
 fi
 
@@ -308,7 +303,7 @@ find "$stage_dir" -type l -delete
 
 verify_path "$stage_dir"
 
-if [[ $dry_run -eq 1 ]]; then
+if (( dry_run == 1 )); then
   cleanup_stage=0
   echo
   echo "Dry run complete. /etc/skel was not modified."
@@ -328,7 +323,7 @@ verify_path /etc/skel >/dev/null
 echo
 echo "Updated /etc/skel successfully."
 echo "Backup saved to: $backup_dir/skel.before"
-if [[ $include_mise -eq 0 ]] && [[ -d $source_home/.local/share/mise ]]; then
+if (( include_mise == 0 )) && [[ -d $source_home/.local/share/mise ]]; then
   echo "Note: ~/.local/share/mise was skipped. Re-run without --skip-mise to clone user runtimes."
 fi
 echo "Next step: recreate the target user so they get the new skeleton."

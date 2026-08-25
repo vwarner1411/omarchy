@@ -1,4 +1,8 @@
--- Define terminal tag to style them uniformly.
-hl.window_rule({ match = { class = "(Alacritty|kitty|com.mitchellh.ghostty|foot)" }, tag = "+terminal" })
-hl.window_rule({ match = { tag = "terminal" }, tag = "-default-opacity" })
-hl.window_rule({ match = { tag = "terminal" }, opacity = "0.97 0.9" })
+-- Define terminal tag so themes and bindings can single terminals out. Omarchy
+-- launches TUIs and its own terminal windows under dedicated app-ids
+-- (org.omarchy.btop, org.omarchy.terminal, TUI.float, ...), so match those too.
+-- The class is matched in full, so foot's other app-id needs spelling out.
+o.window(
+  "(Alacritty|kitty|com.mitchellh.ghostty|foot|org\\.codeberg\\.dnkl\\.foot|wezterm|org\\.omarchy\\..*|TUI\\..*)",
+  { tag = "+terminal" }
+)

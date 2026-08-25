@@ -12,7 +12,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
-OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
 
 if [[ ! -d $OMARCHY_PATH/bin ]] && [[ -d $repo_root/bin ]]; then
   OMARCHY_PATH="$repo_root"
@@ -21,24 +21,19 @@ fi
 cmd_present() {
   local cmd=$1
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$cmd"
-  else
-    command -v "$cmd" >/dev/null 2>&1
-  fi
+  omarchy-cmd-present "$cmd"
 }
 
 omarchy_pkg_add="$OMARCHY_PATH/bin/omarchy-pkg-add"
 omarchy_pkg_drop="$OMARCHY_PATH/bin/omarchy-pkg-drop"
-omarchy_pkg_aur_add="$OMARCHY_PATH/bin/omarchy-pkg-aur-add"
-
 if [[ ! -x $omarchy_pkg_add ]] || [[ ! -x $omarchy_pkg_drop ]]; then
   echo "Error: required Omarchy package helpers are missing under $OMARCHY_PATH/bin." >&2
   exit 1
 fi
 
 # Remove conflicting and unwanted packages first.
-"$omarchy_pkg_drop" tldr eza alacritty
+# Quattro depends on eza. Keep it installed while the zsh overrides prefer lsd.
+"$omarchy_pkg_drop" alacritty
 
 # Package sets derived from bootstrap and local preferences.
 # Names are normalized for Arch where needed.
@@ -81,7 +76,6 @@ bootstrap_pacman_packages=(
   sysstat
   tailscale
   tar
-  tealdeer
   tree
   unzip
   wget
@@ -94,9 +88,17 @@ bootstrap_pacman_packages=(
 
 "$omarchy_pkg_add" "${bootstrap_pacman_packages[@]}"
 
+# tealdeer conflicts with tldr but provides the same package dependency.
+installed_tldr=$(pacman -Qq tldr 2>/dev/null || true)
+if [[ $installed_tldr == "tldr" ]]; then
+  sudo pacman -S --needed --noconfirm --ask 4 tealdeer
+else
+  "$omarchy_pkg_add" tealdeer
+fi
+
 # Install PowerShell from AUR if AUR tooling is present.
-if cmd_present yay && [[ -x $omarchy_pkg_aur_add ]]; then
-  "$omarchy_pkg_aur_add" powershell-bin || true
+if cmd_present yay; then
+  yay -S --noconfirm --needed powershell-bin || true
 fi
 
 if cmd_present systemctl; then

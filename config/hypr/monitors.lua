@@ -1,5 +1,5 @@
 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
--- List current monitors and resolutions possible: hyprctl monitors all
+-- List current monitors and supported resolutions with: hyprctl monitors all
 
 -- Workstation layout: portrait 1080p left monitor, landscape 1440p right monitor.
 hl.env("GDK_SCALE", "2")
