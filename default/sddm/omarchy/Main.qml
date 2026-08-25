@@ -47,6 +47,87 @@ Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       spacing: 15
 
+      Text {
+        width: 24
+        height: userList.height
+        text: "<"
+        color: "#ffffff"
+        font.family: "JetBrainsMono Nerd Font"
+        font.pixelSize: 24
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        visible: userModel.count > 1
+
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          onClicked: userList.changeUser(-1)
+        }
+      }
+
+      ListView {
+        id: userList
+        width: 286
+        height: 32
+        clip: true
+        interactive: false
+        orientation: ListView.Horizontal
+        model: userModel
+        currentIndex: Math.max(0, userModel.lastIndex)
+
+        delegate: Item {
+          width: userList.width
+          height: userList.height
+          property string userName: model.name
+
+          Text {
+            anchors.centerIn: parent
+            text: model.realName === "" ? model.name : model.realName
+            color: "#ffffff"
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 18
+          }
+        }
+
+        onCurrentItemChanged: {
+          if (currentItem)
+            root.currentUser = currentItem.userName
+        }
+
+        function changeUser(offset) {
+          if (userModel.count < 2)
+            return
+
+          currentIndex = (currentIndex + offset + userModel.count) % userModel.count
+          positionViewAtIndex(currentIndex, ListView.Beginning)
+          password.text = ""
+          password.forceActiveFocus()
+        }
+      }
+
+      Text {
+        width: 24
+        height: userList.height
+        text: ">"
+        color: "#ffffff"
+        font.family: "JetBrainsMono Nerd Font"
+        font.pixelSize: 24
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        visible: userModel.count > 1
+
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          onClicked: userList.changeUser(1)
+        }
+      }
+    }
+
+    Row {
+      anchors.horizontalCenter: parent.horizontalCenter
+      spacing: 15
+
       Image {
         source: root.loginFailed ? "lock-failed.png" : "lock.png"
         width: 34
