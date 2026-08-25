@@ -30,6 +30,10 @@ if [[ -n $EDITOR ]]; then
 fi
 
 # Reuse Omarchy aliases/functions where compatible with zsh.
+if [[ -f $HOME/.local/share/omarchy/default/bash/envs ]]; then
+  source "$HOME/.local/share/omarchy/default/bash/envs"
+fi
+
 if [[ -f $HOME/.local/share/omarchy/default/bash/aliases ]]; then
   source "$HOME/.local/share/omarchy/default/bash/aliases"
 fi
