@@ -2,8 +2,6 @@ EFI=""
 CMDLINE=""
 
 if command -v limine &>/dev/null; then
-  sudo pacman -S --noconfirm --needed limine-snapper-sync limine-mkinitcpio-hook
-
   sudo tee /etc/mkinitcpio.conf.d/omarchy_hooks.conf <<EOF >/dev/null
 HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)
 EOF
@@ -50,6 +48,8 @@ EOF
     CMDLINE="rw"
   fi
 
+  # Write /etc/default/limine before installing limine-mkinitcpio-hook, whose
+  # post-transaction deploy hook reads this file while building entries.
   escaped_cmdline="$(printf '%s\n' "$CMDLINE" | sed 's/[&|]/\\&/g')"
   sudo cp "$OMARCHY_PATH/default/limine/default.conf" /etc/default/limine
   sudo sed -i "s|@@CMDLINE@@|$escaped_cmdline|g" /etc/default/limine
@@ -73,32 +73,16 @@ EOF
   # Rebuild the canonical config knowing limine-update will repopulate the entries.
   sudo cp "$OMARCHY_PATH/default/limine/limine.conf" /boot/limine.conf
 
-  # Match Snapper configs if not installing from the ISO
-  if [[ -z ${OMARCHY_CHROOT_INSTALL:-} ]]; then
-    if ! sudo snapper list-configs 2>/dev/null | grep -q "root"; then
-      sudo snapper -c root create-config /
-    fi
+  sudo pacman -S --noconfirm --needed limine-snapper-sync limine-mkinitcpio-hook
 
-    if sudo btrfs subvolume show /home &>/dev/null; then
-      if ! sudo snapper list-configs 2>/dev/null | grep -q "home"; then
-        sudo snapper -c home create-config /home
-      fi
-    fi
+  # Only snapshot root — /home is user data; rolling it back loses user work.
+  if ! sudo snapper list-configs 2>/dev/null | grep -q "root"; then
+    sudo snapper -c root create-config /
   fi
+  sudo cp "$OMARCHY_PATH/default/snapper/root" /etc/snapper/configs/root
 
-  # Enable quota to allow space-aware algorithms to work
-  sudo btrfs quota enable / || true
-
-  # Tweak default Snapper configs
-  for snapper_config in root home; do
-    if [[ -f /etc/snapper/configs/$snapper_config ]]; then
-      sudo sed -i 's/^TIMELINE_CREATE="yes"/TIMELINE_CREATE="no"/' "/etc/snapper/configs/$snapper_config"
-      sudo sed -i 's/^NUMBER_LIMIT="50"/NUMBER_LIMIT="5"/' "/etc/snapper/configs/$snapper_config"
-      sudo sed -i 's/^NUMBER_LIMIT_IMPORTANT="10"/NUMBER_LIMIT_IMPORTANT="5"/' "/etc/snapper/configs/$snapper_config"
-      sudo sed -i 's/^SPACE_LIMIT="0.5"/SPACE_LIMIT="0.3"/' "/etc/snapper/configs/$snapper_config"
-      sudo sed -i 's/^FREE_LIMIT="0.2"/FREE_LIMIT="0.3"/' "/etc/snapper/configs/$snapper_config"
-    fi
-  done
+  # Disable btrfs quotas — full qgroup accounting is a major performance drag.
+  sudo btrfs quota disable / 2>/dev/null || true
 
   chrootable_systemctl_enable limine-snapper-sync.service
 fi
@@ -120,7 +104,9 @@ if command -v limine-update &>/dev/null; then
   sudo limine-update
 fi
 
-if [[ -f /boot/limine.conf ]] && ! grep -Eq '^[[:space:]]*protocol:[[:space:]]*linux' /boot/limine.conf; then
+if [[ -f /boot/limine.conf ]] &&
+  ! grep -Eq '^/(Omarchy|Arch Linux)' /boot/limine.conf &&
+  ! grep -Eq '^[[:space:]]*protocol:[[:space:]]*linux' /boot/limine.conf; then
   echo "Warning: limine-update generated no Linux entry, adding direct fallback entry."
   direct_cmdline="$CMDLINE"
   if [[ $direct_cmdline != *quiet* ]]; then
@@ -146,8 +132,10 @@ EOF
   echo "module_path: boot():/initramfs-linux.img" | sudo tee -a /boot/limine.conf >/dev/null
 fi
 
-# Verify that limine-update actually added boot entries
-if [[ -f /boot/limine.conf ]] && ! grep -q "^/" /boot/limine.conf; then
+# Verify that limine-update actually added an Omarchy-capable boot entry.
+if [[ -f /boot/limine.conf ]] &&
+  ! grep -Eq '^/(Omarchy|Arch Linux)' /boot/limine.conf &&
+  ! grep -Eq '^[[:space:]]*protocol:[[:space:]]*linux' /boot/limine.conf; then
   echo "Error: limine-update failed to add boot entries to /boot/limine.conf" >&2
   exit 1
 fi

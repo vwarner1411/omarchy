@@ -1,7 +1,10 @@
 #!/bin/bash
+
+# omarchy:summary=Prompt for confirmation before starting an update
+
 OMARCHY_REPO="${OMARCHY_REPO:-warnerva/omarchy}"
 
-gum style --border normal --border-foreground 6 --padding "1 2" \
+gum style --border normal --padding "1 2" \
   "Ready to update?" \
   "" \
   "• You cannot stop the update once you start!" \

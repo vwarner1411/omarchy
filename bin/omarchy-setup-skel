@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# omarchy:summary=Build /etc/skel from a sanitized source user home directory.
+# omarchy:requires-sudo=true
+
 # Build /etc/skel from a source user's current setup while removing sensitive data.
 # The resulting skeleton contains regular files only (no symlinks) and no direct
 # references into the source user's home path.

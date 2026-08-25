@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# omarchy:summary=Apply privileged local workstation package and service customizations.
+# omarchy:requires-sudo=true
+
 # Apply local workstation package/service customizations.
 #
 # This script is intended to be run as the logged-in user. It uses sudo for

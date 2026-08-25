@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Sync upstream Omarchy into this fork using a merge workflow.
+
 # Sync upstream Omarchy into this fork using a merge workflow that preserves local commits.
 #
 # Flow:

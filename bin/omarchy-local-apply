@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# omarchy:summary=Apply user-level local workstation overrides from this fork.
+
 # Apply user-level local overrides from the repository.
 
 set -euo pipefail

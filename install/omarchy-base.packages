@@ -19,6 +19,7 @@ btop
 chromium
 clang
 claude-code
+cliamp
 curl
 cups
 cups-browsed
@@ -27,6 +28,7 @@ cups-pdf
 docker
 docker-buildx
 docker-compose
+dosfstools
 dotnet-runtime-9.0
 dust
 evince
@@ -86,7 +88,6 @@ libreoffice-fresh
 llvm
 localsend
 luarocks
-makima-bin
 mako
 man-db
 mariadb-libs
@@ -107,7 +108,6 @@ obs-studio
 obsidian
 omarchy-nvim
 omarchy-walker
-opencode
 pamixer
 pinta
 playerctl
@@ -123,6 +123,7 @@ python-gobject
 python-poetry-core
 python-terminaltexteffects
 qt5-wayland
+quickshell
 ripgrep
 rsync
 ruby
@@ -132,6 +133,7 @@ sddm
 signal-desktop
 slurp
 spotify
+socat
 starship
 sushi
 swaybg
@@ -140,6 +142,9 @@ sysstat
 system-config-printer
 tailscale
 tealdeer
+tesseract
+tesseract-data-eng
+tldr
 tree-sitter-cli
 tree
 tmux

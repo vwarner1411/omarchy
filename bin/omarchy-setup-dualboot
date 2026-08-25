@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# omarchy:summary=Create a minimal Limine dual-boot menu for Omarchy and Windows 11.
+# omarchy:requires-sudo=true
+
 # Create a minimal Limine dual-boot menu with a single Omarchy entry and a single Windows 11 entry.
 # This command:
 # 1) Backs up Limine-related config files
@@ -167,6 +170,25 @@ find_windows_partuuid_from_nvram() {
   return 0
 }
 
+extract_windows_partuuid_from_limine() {
+  local limine_config=$1
+  local windows_path
+  local normalized_path
+
+  windows_path="$(extract_entry_option "$limine_config" "/Windows 11" "path" || true)"
+  if [[ -z $windows_path ]]; then
+    windows_path="$(grep -Ei 'guid\([0-9a-f-]+\):/EFI/Microsoft/Boot/bootmgfw\.efi' "$limine_config" | head -1 || true)"
+  fi
+
+  normalized_path="${windows_path,,}"
+  if [[ $normalized_path =~ guid\(([0-9a-f-]+)\):/efi/microsoft/boot/bootmgfw\.efi ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  return 1
+}
+
 validate_windows_esp() {
   local esp=$1
   local mount_dir
@@ -243,6 +265,10 @@ if [[ -n $windows_esp ]]; then
     exit 1
   fi
   windows_partuuid="$(blkid -s PARTUUID -o value "$windows_esp" 2>/dev/null || true)"
+fi
+
+if [[ -z $windows_partuuid && -f /boot/limine.conf ]]; then
+  windows_partuuid="$(extract_windows_partuuid_from_limine /boot/limine.conf || true)"
 fi
 
 if [[ -z $windows_partuuid ]]; then
@@ -397,6 +423,11 @@ path: guid(${windows_partuuid}):/EFI/Microsoft/Boot/bootmgfw.efi
 EOF
 
 sudo install -m 0644 "$tmp_limine_config" /boot/limine.conf
+
+if ! grep -q '^/Omarchy$' /boot/limine.conf || ! grep -q '^/Windows 11$' /boot/limine.conf; then
+  echo "Error: generated Limine config is missing required Omarchy or Windows entries." >&2
+  exit 1
+fi
 
 for alternate_config in \
   /boot/EFI/arch-limine/limine.conf \
