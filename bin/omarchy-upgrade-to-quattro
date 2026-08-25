@@ -354,6 +354,10 @@ sudo_keepalive_pid=""
 hyprland_config_reload_suppressed=0
 upgrade_started=0
 upgrade_completed=0
+dualboot_restore_required=0
+dualboot_windows_partuuid=""
+dualboot_helper=""
+upgrade_bin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 cleanup_on_exit() {
   local exit_status=$?
@@ -365,6 +369,8 @@ cleanup_on_exit() {
   if [[ -n ${sudo_keepalive_pid:-} ]]; then
     kill "$sudo_keepalive_pid" 2>/dev/null || true
   fi
+
+  [[ -z ${dualboot_helper:-} ]] || rm -f "$dualboot_helper"
 
   # set -e aborts without a word, and the last thing on screen is a green
   # progress line, so a half-finished upgrade otherwise reads as a finished one.
@@ -385,6 +391,61 @@ if (( EUID != 0 )); then
 fi
 
 backup_suffix=$(date +%Y%m%d%H%M%S)
+
+capture_upgrade_dualboot_state() {
+  local limine_config windows_path helper_source=""
+
+  as_root test -f /boot/limine.conf || return 0
+  limine_config=$(as_root cat /boot/limine.conf)
+
+  if ! grep -Eqi '^[[:space:]]*/Windows 11[[:space:]]*$|guid\([0-9a-f-]+\):/EFI/Microsoft/Boot/bootmgfw\.efi' <<<"$limine_config"; then
+    return 0
+  fi
+
+  windows_path=$(grep -Eio 'guid\([0-9a-f-]+\):/EFI/Microsoft/Boot/bootmgfw\.efi' <<<"$limine_config" | head -n1 || true)
+  dualboot_windows_partuuid=$(sed -nE 's|^guid\(([0-9a-f-]+)\):.*|\1|Ip' <<<"$windows_path")
+  dualboot_windows_partuuid=${dualboot_windows_partuuid,,}
+
+  if [[ ! $dualboot_windows_partuuid =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    fail "Windows is present in /boot/limine.conf, but its GPT PARTUUID is missing or invalid. Repair the entry before upgrading."
+  fi
+
+  for helper_source in \
+    "$upgrade_bin_dir/omarchy-setup-dualboot" \
+    "${OMARCHY_PATH:-}/bin/omarchy-setup-dualboot"; do
+    [[ -x $helper_source ]] && break
+    helper_source=""
+  done
+
+  if [[ -z $helper_source ]]; then
+    helper_source=$(command -v omarchy-setup-dualboot 2>/dev/null || true)
+  fi
+  [[ -n $helper_source && -x $helper_source ]] ||
+    fail "Windows is present, but omarchy-setup-dualboot is unavailable. Refusing to modify the bootloader."
+
+  dualboot_helper=$(mktemp /tmp/omarchy-setup-dualboot.XXXXXX)
+  cp "$helper_source" "$dualboot_helper"
+  chmod 0755 "$dualboot_helper"
+
+  log "Backing up the current dual-boot Limine config"
+  as_root cp -a /boot/limine.conf "/boot/limine.conf.omarchy-upgrade-to-quattro.$backup_suffix.bak"
+  dualboot_restore_required=1
+}
+
+restore_upgrade_dualboot_state() {
+  local limine_config
+
+  (( dualboot_restore_required )) || return 0
+
+  log "Restoring the Omarchy and Windows Limine menu"
+  env PATH="$package_path" "$dualboot_helper" --windows-partuuid "$dualboot_windows_partuuid"
+
+  limine_config=$(as_root cat /boot/limine.conf)
+  grep -Fxq '/Omarchy' <<<"$limine_config" || fail "The restored Limine config has no Omarchy entry."
+  grep -Fxq '/Windows 11' <<<"$limine_config" || fail "The restored Limine config has no Windows 11 entry."
+  grep -Fqi "path: guid(${dualboot_windows_partuuid}):/EFI/Microsoft/Boot/bootmgfw.efi" <<<"$limine_config" ||
+    fail "The restored Limine config does not use the preserved Windows PARTUUID."
+}
 
 configure_pacman_channel() {
   log "Configuring Omarchy pacman repositories ($channel)"
@@ -2308,6 +2369,10 @@ refresh_current_theme_after_upgrade() {
   run_as_user_omarchy omarchy-restart-terminal >/dev/null 2>&1 || true
 }
 
+# Preserve a known-good dual-boot target and a runnable copy of its restore
+# helper before package installation replaces the legacy source tree.
+capture_upgrade_dualboot_state
+
 # Everything below mutates the system, so a non-zero exit from here on leaves a
 # half-upgraded machine that must not be rebooted.
 upgrade_started=1
@@ -2344,6 +2409,7 @@ run_post_upgrade_migrations
 run_final_system_package_upgrade
 run_post_upgrade_update_steps
 refresh_current_theme_after_upgrade
+restore_upgrade_dualboot_state
 # Do not force-reload Hyprland in the live upgraded session. The legacy
 # default/hypr and theme hyprland.conf shims above exist specifically so the
 # pre-reboot session can keep running safely; the reboot performs the real

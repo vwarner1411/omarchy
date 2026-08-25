@@ -177,3 +177,20 @@ reboot_line=$(grep -n 'Rebooting because --reboot was passed' "$upgrade_to_quatt
 [[ -n $unsafe_line && -n $reboot_line ]] || fail "reboot gate and reboot branch exist"
 (( unsafe_line < reboot_line )) || fail "an unverified kernel cmdline blocks the reboot"
 pass "Omarchy 4 upgrade verifies the UKIs and refuses to reboot unverified"
+
+capture_dualboot_line=$(grep -n '^capture_upgrade_dualboot_state$' "$upgrade_to_quattro" | cut -d: -f1)
+remove_legacy_limine_line=$(grep -n '^remove_legacy_limine_configs$' "$upgrade_to_quattro" | cut -d: -f1)
+restore_dualboot_line=$(grep -n '^restore_upgrade_dualboot_state$' "$upgrade_to_quattro" | cut -d: -f1)
+final_package_upgrade_line=$(grep -n '^run_final_system_package_upgrade$' "$upgrade_to_quattro" | cut -d: -f1)
+[[ -n $capture_dualboot_line && -n $remove_legacy_limine_line && -n $restore_dualboot_line && -n $final_package_upgrade_line ]] ||
+  fail "dual-boot preservation calls exist"
+(( capture_dualboot_line < remove_legacy_limine_line )) ||
+  fail "the Windows boot target is captured before Limine changes"
+(( final_package_upgrade_line < restore_dualboot_line )) ||
+  fail "the Windows boot target is restored after package hooks finish"
+(( restore_dualboot_line < completed_line )) ||
+  fail "a failed Windows boot target restore blocks upgrade completion"
+grep -F 'limine.conf.omarchy-upgrade-to-quattro.$backup_suffix.bak' "$upgrade_to_quattro" >/dev/null
+grep -F 'omarchy-setup-dualboot.XXXXXX' "$upgrade_to_quattro" >/dev/null
+grep -F -- '--windows-partuuid "$dualboot_windows_partuuid"' "$upgrade_to_quattro" >/dev/null
+pass "Omarchy 4 upgrade preserves the existing Windows Limine entry"
