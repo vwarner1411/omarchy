@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Services.Pam
 import Quickshell.Wayland
 import qs.Commons
+import "LockModel.js" as LockModel
 
 Item {
   id: root
@@ -15,6 +16,8 @@ Item {
   readonly property string stateHome: home + "/.local/state"
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
+  readonly property var idleConfig: shell && shell.shellConfig && shell.shellConfig.idle ? shell.shellConfig.idle : ({})
+  readonly property int blankDelaySeconds: LockModel.blankDelaySeconds(idleConfig, 5)
 
   property bool lockRequested: false
   property bool pendingSessionLock: false
@@ -413,7 +416,7 @@ Item {
 
   Timer {
     id: idleBlankTimer
-    interval: 5000
+    interval: root.blankDelaySeconds * 1000
     repeat: false
     property double armedAt: 0
     onTriggered: {
@@ -531,6 +534,7 @@ Item {
         passwordPam: root.passwordPamConfigured,
         fingerprint: root.fingerprintConfigured,
         authenticating: root.authenticating,
+        blankDelay: root.blankDelaySeconds,
         lastEvent: root.lastEvent,
         lastEventAt: root.lastEventAt
       })

@@ -116,7 +116,8 @@ individual plugins (`bar`, `image-selector`, …).
   "version": 1,
   "idle": {
     "screensaver": 150,
-    "lock": 300
+    "lock": 300,
+    "displayOff": 900
   },
   "bar": {
     "id": "omarchy.bar",
@@ -150,7 +151,9 @@ Rules:
 5. Third-party enabled ⇔ present; for full bar options that means `bar.id`.
    First-party non-bar plugins are enabled unless listed in `disabledPlugins[]`.
 6. `allowMultiple: true` in the manifest permits multiple instances.
-7. `idle.screensaver` and `idle.lock` are seconds since user idle began.
+7. `idle.screensaver`, `idle.lock`, and optional `idle.displayOff` are seconds
+   since user idle began. Without `displayOff`, the lock screen keeps its
+   default five-second display blanking delay.
 8. `version: 1` is required.
 
 `config/omarchy/shell.json` describes the fresh-install state. When no
