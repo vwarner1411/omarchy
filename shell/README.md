@@ -231,8 +231,9 @@ becomes the authoritative file — we do **not** deep-merge defaults back in.
 {
   "version": 1,
   "idle": {
-    "screensaver": 150,
-    "lock": 300
+    "screensaver": 900,
+    "lock": 960,
+    "displayOff": 3600
   },
   "bar": {
     "id": "omarchy.bar",
@@ -276,7 +277,7 @@ becomes the authoritative file — we do **not** deep-merge defaults back in.
    entries with their own values.
 7. **Idle timings are top-level.** `idle.screensaver`, `idle.lock`, and optional
    `idle.displayOff` are seconds since user idle began, so the default lock
-   fires at 300s even if the 150s screensaver starts first. Without
+   fires at 960s even if the 900s screensaver starts first. Without
    `displayOff`, the lock screen keeps its default five-second blanking delay.
 8. **`version: 1` is required** at the top level. The shell will fall back
    to defaults rather than load an unknown version.

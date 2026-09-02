@@ -13,6 +13,9 @@ require_command python3
 jq empty "$ROOT/config/omarchy/shell.json"
 pass "default shell.json is valid JSON"
 
+jq -e '.idle == {"screensaver": 900, "lock": 960, "displayOff": 3600}' "$ROOT/config/omarchy/shell.json" >/dev/null
+pass "default idle schedule is 15-minute screensaver, 16-minute lock, and 60-minute display off"
+
 jq -e '.version == 1 and (.bar.layout.left | type == "array") and (.bar.layout.center | type == "array") and (.bar.layout.right | type == "array")' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default shell.json has versioned bar layout"
 

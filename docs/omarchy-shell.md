@@ -115,9 +115,9 @@ individual plugins (`bar`, `image-selector`, …).
 {
   "version": 1,
   "idle": {
-    "screensaver": 150,
-    "lock": 300,
-    "displayOff": 900
+    "screensaver": 900,
+    "lock": 960,
+    "displayOff": 3600
   },
   "bar": {
     "id": "omarchy.bar",

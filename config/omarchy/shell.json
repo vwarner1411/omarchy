@@ -2,7 +2,8 @@
   "version": 1,
   "idle": {
     "screensaver": 900,
-    "lock": 1200
+    "lock": 960,
+    "displayOff": 3600
   },
   "bar": {
     "position": "top",
