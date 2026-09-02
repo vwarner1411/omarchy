@@ -1,0 +1,115 @@
+/* Tokyo Night palette from Omarchy's themes/tokyo-night/colors.toml. */
+:root {
+  --pageBG: #1a1b26 !important;
+  --pageBG-rgb: 26, 27, 38 !important;
+  --opaqueShelfBG: #13141c !important;
+  --fallbackMaterialBG: rgba(19, 20, 28, 0.97) !important;
+  --shelfBG: rgba(36, 40, 59, 0.15) !important;
+  --genericJoeColor: #292e42 !important;
+
+  --systemPrimary: rgba(192, 202, 245, 0.85) !important;
+  --systemPrimary-vibrant: #c0caf5 !important;
+  --systemSecondary: rgba(169, 177, 214, 0.55) !important;
+  --systemSecondary-vibrant: #b4bee6 !important;
+  --systemTertiary: rgba(86, 95, 137, 0.25) !important;
+  --systemQuaternary: rgba(41, 46, 66, 0.15) !important;
+  --systemQuinary: rgba(36, 40, 59, 0.08) !important;
+
+  --labelDivider: rgba(65, 72, 104, 0.2) !important;
+  --vibrantDivider: rgba(65, 72, 104, 0.25) !important;
+
+  --playerBackground: rgba(19, 20, 28, 0.88) !important;
+  --playerBackgroundFallback: rgba(19, 20, 28, 0.97) !important;
+  --playerLCDBGFill: #24283b !important;
+  --playerMissingArtworkBg: #292e42 !important;
+  --playerMissingArtworkIcon: #414868 !important;
+  --playerScrubberFill: #7aa2f7 !important;
+  --playerScrubberTrack: rgba(41, 46, 66, 0.2) !important;
+  --playerPlatterButtonBGFill: #7aa2f7 !important;
+  --playerPlatterButtonIconFill: #1a1b26 !important;
+  --playerDropShadow2: rgba(14, 14, 20, 0.1) !important;
+
+  --segmentedControlBG: rgba(36, 40, 59, 0.2) !important;
+  --segmentedControlSelectedBG: #292e42 !important;
+  --tracklistHoverColor: rgba(36, 40, 59, 0.08) !important;
+  --tracklistAltRowColor: rgba(36, 40, 59, 0.03) !important;
+
+  --systemStandardThickMaterialSover: rgba(19, 20, 28, 0.72) !important;
+  --systemHeaderMaterialSover: rgba(19, 20, 28, 0.8) !important;
+  --systemToolbarTitlebarMaterialSover: rgba(19, 20, 28, 0.8) !important;
+}
+
+* {
+  scrollbar-color: #292e42 #13141c !important;
+  --keyColor: #7aa2f7 !important;
+  --keyColor-rgb: 122, 162, 247 !important;
+  --keyColor-rollover: #7da6ff !important;
+  --keyColor-pressed: #7da6ff !important;
+  --keyColor-deepPressed: #7da6ff !important;
+  --keyColor-disabled: rgba(122, 162, 247, 0.35) !important;
+  --musicKeyColor: #7aa2f7 !important;
+  --musicBrandBG: #7aa2f7 !important;
+  --selectionColor: #7aa2f7 !important;
+  --chromePlayerBGFill: rgba(19, 20, 28, 0.88) !important;
+  --lcd-bg-color: #24283b !important;
+}
+
+.chrome-player::before {
+  background-color: rgba(19, 20, 28, 0.88) !important;
+  background-image: none !important;
+}
+
+.side-panel,
+.side-panel.side-panel-header-wrapper,
+.side-panel .side-panel-header-wrapper,
+.side-panel-header-wrapper {
+  background-color: rgba(19, 20, 28, 0.97) !important;
+}
+
+.side-panel {
+  backdrop-filter: blur(50px) saturate(100%) !important;
+}
+
+:is(footer, .scrollable-page footer) {
+  background: #0e0e14 !important;
+  background-color: #0e0e14 !important;
+  border-color: rgba(65, 72, 104, 0.2) !important;
+  color: rgba(192, 202, 245, 0.85) !important;
+}
+
+:is(footer, .scrollable-page footer)
+  :is(a, button, select, [role="button"], [class*="dropdown"]) {
+  background-color: #13141c !important;
+  border-color: rgba(65, 72, 104, 0.25) !important;
+  color: rgba(192, 202, 245, 0.85) !important;
+}
+
+[class*="locale-switcher"],
+[data-testid="banner-container"] {
+  background: #13141c !important;
+  background-color: #13141c !important;
+}
+
+[data-testid="banner-container"] {
+  border-color: rgba(65, 72, 104, 0.25) !important;
+  color: rgba(192, 202, 245, 0.85) !important;
+}
+
+[data-testid="banner-container"] [data-testid="close-button"] {
+  color: rgba(192, 202, 245, 0.85) !important;
+  fill: rgba(192, 202, 245, 0.85) !important;
+}
+
+[data-testid="banner-container"] [data-testid="close-button"] svg path {
+  fill: rgba(192, 202, 245, 0.85) !important;
+}
+
+[data-testid="banner-container"] [data-testid="dropdown-button"] {
+  background-color: #24283b !important;
+  border-color: rgba(65, 72, 104, 0.4) !important;
+  color: rgba(192, 202, 245, 0.85) !important;
+}
+
+.button.primary button.click-action {
+  background-color: var(--keyColor) !important;
+}
