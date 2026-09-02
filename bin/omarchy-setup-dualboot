@@ -394,12 +394,16 @@ term_background_bright: 24283b
 EOF
 
 if [[ $omarchy_protocol == "efi" ]]; then
+  # omarchy:heredoc-expands paths=none -- both values come from root-owned boot
+  # state; a generated EFI path must also name an existing file under /boot.
   cat >>"$tmp_limine_config" <<EOF
 protocol: efi
 path: $omarchy_path
 cmdline: $cmdline
 EOF
 else
+  # omarchy:heredoc-expands paths=none -- $cmdline comes from root-owned
+  # Limine configuration or the kernel's current command line.
   cat >>"$tmp_limine_config" <<EOF
 protocol: linux
 kernel_path: boot():/vmlinuz-linux
@@ -417,6 +421,8 @@ EOF
   echo "module_path: boot():/initramfs-linux.img" >>"$tmp_limine_config"
 fi
 
+# omarchy:heredoc-expands paths=windows_partuuid -- strict GPT GUID validation
+# above excludes path separators, shell syntax, and newlines.
 cat >>"$tmp_limine_config" <<EOF
 
 /Windows 11
