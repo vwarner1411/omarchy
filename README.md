@@ -22,6 +22,8 @@ omarchy dev link /home/warnerva/programming/omarchy --no-reboot
 
 The link sets `OMARCHY_PATH` and sudo's Omarchy command path after reboot. Fixed package-owned paths under `/etc`, `/usr/lib/systemd`, and similar locations still require a package build rather than a development link.
 
+The SDDM login theme is restored from the linked checkout after system package updates by `omarchy update`, preserving this fork's user chooser. To restore it immediately after linking or a direct package installation, run `omarchy refresh sddm`. This takes effect at the next login screen without restarting the current session.
+
 ## Key Commands Added
 
 ### 1) Dual boot setup (Limine)

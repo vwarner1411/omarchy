@@ -132,6 +132,11 @@ Important behavior:
 
 - In dev-link mode, `omarchy update` fast-forwards the active checkout from its
   configured upstream before changing system packages or running migrations.
+- Immediately after system package updates, dev-link mode restores the checkout's
+  SDDM theme with `omarchy refresh sddm`. SDDM reads a fixed system path that
+  `omarchy-settings` overwrites; without this refresh, the fork's user chooser
+  disappears at the next boot. A refresh failure stops the update before the
+  reboot prompt. Direct package installations need a manual refresh.
 - The free-space requirement uses a 10 GiB threshold and stops the update before
   confirmation when it is not met. If free space cannot be determined, the
   check is silently skipped. Set `OMARCHY_UPDATE_FORCE=1` to bypass the check.

@@ -28,6 +28,7 @@ steps=(
   omarchy-update-dev
   omarchy-update-keyring
   omarchy-update-system-pkgs
+  omarchy-refresh-sddm
   omarchy-migrate
   omarchy-hook
   omarchy-update-aur-pkgs
@@ -43,6 +44,15 @@ for step in "${steps[@]}"; do
 #!/bin/bash
 printf '%s unattended=%s\n' "${0##*/}" "${OMARCHY_UPDATE_UNATTENDED:-}" >>"$STEP_LOG"
 [[ ${FAILING_STEP:-} != "${0##*/}" ]] || exit 1
+case "${0##*/}" in
+omarchy-update-system-pkgs)
+  # Model omarchy-settings replacing the login theme with upstream's version.
+  printf 'upstream theme without a user chooser\n' >"$TEST_SDDM_THEME"
+  ;;
+omarchy-refresh-sddm)
+  cp "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$TEST_SDDM_THEME"
+  ;;
+esac
 STUB
   chmod +x "$stub_bin/$step"
 done
@@ -58,6 +68,8 @@ chmod +x "$stub_bin/omarchy-setup-dualboot"
 run_update() {
   : >"$test_tmp/steps"
   STEP_LOG="$test_tmp/steps" \
+    TEST_SDDM_THEME="$test_tmp/Main.qml" \
+    OMARCHY_PATH="${TEST_OMARCHY_PATH:-/usr/share/omarchy}" \
     FAILING_STEP="${FAILING_STEP:-}" \
     OMARCHY_UPDATE_LOGGED=1 \
     PATH="$stub_bin:$ROOT/bin:$PATH" \
@@ -81,6 +93,7 @@ expected_steps() {
     omarchy-update-dev \
     omarchy-update-keyring \
     omarchy-update-system-pkgs \
+    ${2:+omarchy-refresh-sddm} \
     omarchy-migrate \
     omarchy-hook \
     omarchy-update-aur-pkgs \
@@ -105,6 +118,31 @@ diff <(expected_steps confirmed) <(steps_run) >"$test_tmp/order" ||
 grep -q '^omarchy-update-system-pkgs unattended=$' "$test_tmp/steps" ||
   fail "an update a person confirmed is treated as unattended"
 pass "-y is what marks an update unattended, not the update itself"
+
+# The checkout's QML survives a git merge, but SDDM loads the package-owned
+# copy under /usr/share/sddm. Restore it before migrations or optional updates
+# can fail and leave the next boot using the upstream login screen.
+TEST_OMARCHY_PATH="$ROOT" run_update -y || fail "a dev-linked update reports a failure"
+diff <(expected_steps '' dev) <(steps_run) >"$test_tmp/order" ||
+  fail "a dev-linked update restores SDDM immediately after packages" "$(cat "$test_tmp/order")"
+cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$test_tmp/Main.qml" ||
+  fail "a package update leaves the fork's user chooser installed"
+pass "a dev-linked update restores the fork's login theme after package replacement"
+
+if TEST_OMARCHY_PATH="$ROOT" FAILING_STEP=omarchy-update-mise run_update -y; then
+  fail "a failed tool upgrade passes for a successful update"
+fi
+cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$test_tmp/Main.qml" ||
+  fail "a later update failure loses the fork's login theme"
+pass "the fork's login theme survives a later update failure"
+
+if TEST_OMARCHY_PATH="$ROOT" FAILING_STEP=omarchy-refresh-sddm run_update -y; then
+  fail "a failed SDDM restoration passes for a successful update"
+fi
+if grep -q '^omarchy-update-restart ' "$test_tmp/steps"; then
+  fail "a failed SDDM restoration offers a reboot"
+fi
+pass "a failed login theme restoration stops the update before offering a reboot"
 
 cat >"$test_tmp/limine.conf" <<'EOF'
 /Omarchy

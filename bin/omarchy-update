@@ -79,6 +79,13 @@ if [[ ${1:-} == "-y" ]] || omarchy-update-confirm; then
   # them, so everything below waits on this finishing. An upgrade that stopped
   # takes the update with it rather than migrating against what is still on disk.
   omarchy-update-system-pkgs
+
+  # SDDM loads a fixed system path that omarchy-settings replaces even when
+  # dev-linked. Restore the checkout's login theme before any later step fails.
+  if [[ $OMARCHY_PATH != "/usr/share/omarchy" ]]; then
+    omarchy-refresh-sddm
+  fi
+
   omarchy-migrate
   omarchy-hook post-update
   omarchy-update-aur-pkgs
