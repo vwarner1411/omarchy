@@ -24,6 +24,21 @@ The link sets `OMARCHY_PATH` and sudo's Omarchy command path after reboot. Fixed
 
 The SDDM login theme is restored from the linked checkout after system package updates by `omarchy update`, preserving this fork's user chooser. To restore it immediately after linking or a direct package installation, run `omarchy refresh sddm`. This takes effect at the next login screen without restarting the current session.
 
+## RabbitMQ and Celery Compatibility
+
+Holding RabbitMQ and Erlang at compatible versions does not address Celery's queue declarations. RabbitMQ 4.3 rejects transient non-exclusive queues by default; Celery 5.6 clients using these control/reply queues can reconnect continuously and flood both the journal and RabbitMQ's log. Workers can remain `active` in systemd while their task queues have no consumers.
+
+[`default/rabbitmq/rabbitmq.conf`](default/rabbitmq/rabbitmq.conf) contains the workstation's compatibility setting and built-in log rotation at 100 MiB with five compressed archives. Merge these settings into `/etc/rabbitmq/rabbitmq.conf` and restart `rabbitmq.service` to apply them. This is an administrator-owned config; a dev link does not install it automatically. Built-in rotation works even without `logrotate.timer`.
+
+The deprecated queue permission is temporary. Remove it once every Celery client uses exclusive or durable control/event queues. See the [RabbitMQ queue compatibility guidance](https://www.rabbitmq.com/docs/queues#durability) and [log rotation documentation](https://www.rabbitmq.com/docs/logging).
+
+Verify queue consumers and recent errors after applying the settings:
+
+```bash
+sudo -u rabbitmq rabbitmqctl list_queues -p inkfish name consumers messages_ready messages_unacknowledged
+journalctl -u 'inkfish-worker@*.service' --since '2 minutes ago'
+```
+
 ## Key Commands Added
 
 ### 1) Dual boot setup (Limine)
