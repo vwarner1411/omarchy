@@ -19,25 +19,42 @@ pass "default idle schedule is 15-minute screensaver, 16-minute lock, and 60-min
 jq -e '.version == 1 and (.bar.layout.left | type == "array") and (.bar.layout.center | type == "array") and (.bar.layout.right | type == "array")' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default shell.json has versioned bar layout"
 
+jq -e '.bar.layout.center == []' "$ROOT/config/omarchy/shell.json" >/dev/null ||
+  fail "default bar leaves the center empty"
+pass "default bar leaves the center empty"
+
+jq -e '
+  [.bar.layout[][] | .id] as $ids |
+  ($ids | map(select(. == "omarchy.clock")) | length) == 1 and
+  .bar.layout.right[-1].id == "omarchy.clock"
+' "$ROOT/config/omarchy/shell.json" >/dev/null || fail "default bar keeps one clock at the far right"
+pass "default bar keeps one clock at the far right"
+
 # Pinning the whole row made this fail every time an unrelated widget moved,
 # so assert the adjacency the name is about and let the rest of the row change.
 jq -e '
   def ids: map(.id // .);
-  (.bar.layout.center | ids) as $ids |
+  (.bar.layout.right | ids) as $ids |
   ($ids | index("omarchy.weather")) as $weather |
   ($ids | index("omarchy.system-update")) as $update |
   $weather != null and $update == $weather + 1
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
-pass "default center layout keeps update next to weather"
+pass "default right layout keeps update next to weather"
 
 jq -e '
-  (.bar.centerAnchor // "") as $anchor |
-  any(.bar.layout.center[]; (.id // .) == $anchor)
+  (.bar.layout.right | map(.id // .)) as $ids |
+  all(["omarchy.indicators", "omarchy.keyboard-layout", "omarchy.weather", "omarchy.system-update"][];
+    . as $id | ($ids | map(select(. == $id)) | length) == 1)
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
-pass "default center anchor exists in center layout"
+pass "default right layout preserves every former center widget"
 
 jq -e '
-  any(.bar.layout.center[]; (.id // .) == "omarchy.clock" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
+  .bar.layout.right[-1].format == "ddd d MMM HH:mm"
+' "$ROOT/config/omarchy/shell.json" >/dev/null
+pass "default clock shows weekday date and 24-hour time"
+
+jq -e '
+  any(.bar.layout.right[]; (.id // .) == "omarchy.clock" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default clock date format has no leading zero"
 
@@ -396,6 +413,11 @@ jq -e '
   (.bar.layout.center | ids | index("omarchy.tailscale") == null)
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar defaults places service widgets without a running shell"
+
+jq -e '.bar.layout.center == [] and .bar.layout.right[-1].id == "omarchy.clock"' \
+  "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null ||
+  fail "optional service widgets displace the rightmost clock or populate the center"
+pass "bar defaults keeps the center empty and clock last when adding service widgets"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=0 OMARCHY_TEST_TAILSCALE=0 omarchy-refresh-shell
 jq -e '

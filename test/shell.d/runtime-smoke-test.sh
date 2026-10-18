@@ -47,10 +47,13 @@ stub_bin="$TMPDIR/bin"
 log="$TMPDIR/quickshell.log"
 mkdir -p "$test_root" "$test_home" "$stub_bin"
 cp -a "$ROOT/shell" "$test_root/shell"
-# This fixture exercises the built-in display panel without downloading or
-# running the third-party replacement installed by the fork's first login.
+# This fixture exercises built-in panels without downloading or running the
+# third-party replacements installed by the fork's first login.
 cp -a "$ROOT/config" "$test_root/config"
-jq '(.bar.layout[][] | select(.id == "io.github.dragosol.better-displays-pro")).id = "omarchy.monitor"' \
+jq '
+  (.bar.layout[][] | select(.id == "io.github.dragosol.better-displays-pro")).id = "omarchy.monitor" |
+  (.bar.layout[][] | select(.id == "cdelcollado.bluetooth")).id = "omarchy.bluetooth"
+' \
   "$test_root/config/omarchy/shell.json" >"$test_root/config/omarchy/shell.json.tmp"
 mv "$test_root/config/omarchy/shell.json.tmp" "$test_root/config/omarchy/shell.json"
 ln -s "$ROOT/bin" "$test_root/bin"
@@ -422,19 +425,21 @@ jq -e --argjson expected "$default_ids" --argjson visibleExpected "$visible_defa
 pass "default bar layout renders expected module slots"
 
 jq -e '
-  map(select(.section == "center")) | map(.id) as $center |
-  ($center | index("omarchy.weather")) != null and
-  ($center | index("omarchy.system-update")) != null and
-  ($center | index("omarchy.indicators")) != null and
-  (($center | index("omarchy.weather")) < ($center | index("omarchy.system-update"))) and
-  (($center | index("omarchy.system-update")) < ($center | index("omarchy.indicators")))
+  . as $rows |
+  map(select(.section == "right")) | map(.id) as $right |
+  all($rows[]; .section != "center" or .visible != true) and
+  all(["omarchy.indicators", "omarchy.weather", "omarchy.system-update", "omarchy.clock"][];
+    . as $id | ($right | index($id)) != null) and
+  (($right | index("omarchy.indicators")) < ($right | index("omarchy.weather"))) and
+  (($right | index("omarchy.weather")) < ($right | index("omarchy.system-update"))) and
+  (($right | index("omarchy.system-update")) < ($right | index("omarchy.clock")))
 ' <<<"$geometry" >/dev/null || {
   printf 'Geometry:\n' >&2
   jq . <<<"$geometry" >&2
-  fail_with_log "runtime geometry keeps update before indicators"
+  fail_with_log "runtime geometry leaves the center empty and places the clock after the right-side status widgets"
 }
 
-pass "runtime geometry keeps update before indicators"
+pass "runtime geometry leaves the center empty and places the clock after the right-side status widgets"
 
 for panel_id in omarchy.audio omarchy.bluetooth omarchy.monitor omarchy.network omarchy.power; do
   shell_ipc "$panel_id" open >/dev/null || fail_with_log "direct panel IPC opens $panel_id"
@@ -601,6 +606,11 @@ pass "bar remove reloads shell config and updates bar layout"
 # 'bar put' is what migrations use to place a newly shipped widget, so it has
 # to place one that is missing and leave one that is already there alone,
 # however often it runs.
+[[ $(shell_ipc shell setPluginEnabled omarchy.keyboard-layout false) == "ok" ]] ||
+  fail_with_log "bar put fixture could not remove its keyboard widget"
+[[ $(shell_ipc shell moveBarWidget omarchy.clock '{"section":"center","index":0}') == "ok" ]] ||
+  fail_with_log "bar put fixture could not place its reference clock in the center"
+
 bar_put() {
   HOME="$test_home" OMARCHY_PATH="$test_root" PATH="$ROOT/bin:$PATH" "$ROOT/bin/omarchy-bar" put "$@"
 }

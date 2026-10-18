@@ -284,9 +284,9 @@ assert(/readonly property real labelWidth:/.test(fs.readFileSync(root + '/shell/
 assert(/if \(event\.angleDelta\.y === 0\) return/.test(panelSource), 'calendar ignores wheel events with no vertical delta')
 JS
 
-shell_json=$(cd "$ROOT" && jq -r '[.bar.layout.center[].id] | join(",")' config/omarchy/shell.json)
-[[ $shell_json == *"omarchy.clock"* ]] || fail "default bar layout includes the clock widget" "center: $shell_json"
-[[ $shell_json != *"omarchy.calendar"* ]] || fail "clock hosts the calendar instead of a second bar pill" "center: $shell_json"
+shell_json=$(cd "$ROOT" && jq -r '(.bar.layout.left + .bar.layout.center + .bar.layout.right) | map(.id) | join(",")' config/omarchy/shell.json)
+[[ $shell_json == *"omarchy.clock"* ]] || fail "default bar layout includes the clock widget" "layout: $shell_json"
+[[ $shell_json != *"omarchy.calendar"* ]] || fail "clock hosts the calendar instead of a second bar pill" "layout: $shell_json"
 pass "default bar layout includes the clock widget"
 
 grep -q 'o.bind("SUPER + CTRL + ALT + D", "Calendar", "omarchy-shell shell toggle omarchy.clock")' \
