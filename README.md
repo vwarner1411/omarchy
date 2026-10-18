@@ -32,6 +32,10 @@ The kernel migration retains the old kernel and checks the NVIDIA DKMS modules a
 
 RabbitMQ/Celery are retired from this fork's workstation assumptions. Their package holds and compatibility configuration have been removed, and a migration removes existing holds while preserving other pacman settings. Decommission the legacy Inkfish worker services and uninstall the broker only after the system backup and the application's replacement deployment are ready; this source merge does not modify that separate application's virtual environment.
 
+## Default Hardware Monitor
+
+[Hardware Monitor](https://github.com/edgarsilva/omarchy-hw-monitor) is installed and enabled at first login, after the desktop shell starts. The default bar places it on the right, immediately after the tray. Installation needs network access; a failed first-run step is retried at the next login. An existing installation is left untouched, including its settings and placement.
+
 ## Key Commands Added
 
 ### 1) Dual boot setup (Limine)
