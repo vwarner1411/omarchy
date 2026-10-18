@@ -38,6 +38,8 @@ RabbitMQ/Celery are retired from this fork's workstation assumptions. Their pack
 
 [Better Displays Pro](https://github.com/dragosol/omarchy-better-displays) is also installed at first login and replaces the stock Display widget between audio and power. If setup finds a stock display icon in an existing bar, it enables the replacement in that position before disabling the stock widget, avoiding duplicate icons. Existing plugin files and saved display profiles are preserved; setup does not change monitor resolutions, scaling, rotation, or arrangement. Installation failures leave an existing stock control intact and are retried at the next login.
 
+[Bluetooth (hide devices)](https://github.com/cdelcollado/btomarchy) is installed at first login and replaces the stock Bluetooth widget between agents and network. Setup enables it in the stock position before disabling the old widget, and the default Super+Ctrl+B shortcut opens the replacement. Existing plugin code, settings, and hidden-device lists are preserved. Installation or activation failures leave an existing stock control intact and are retried at the next login.
+
 ## Key Commands Added
 
 ### 1) Dual boot setup (Limine)
