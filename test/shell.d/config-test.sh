@@ -23,6 +23,10 @@ jq -e '.bar.layout.center == []' "$ROOT/config/omarchy/shell.json" >/dev/null ||
   fail "default bar leaves the center empty"
 pass "default bar leaves the center empty"
 
+jq -e '.bar.layout.left[-1].id == "omarchy.indicators" and .bar.layout.left[-2].id == "omarchy.workspaces"' \
+  "$ROOT/config/omarchy/shell.json" >/dev/null || fail "default expanding indicators sit after the left-hand workspaces"
+pass "default expanding indicators sit after the left-hand workspaces"
+
 jq -e '
   [.bar.layout[][] | .id] as $ids |
   ($ids | map(select(. == "omarchy.clock")) | length) == 1 and
@@ -43,10 +47,10 @@ pass "default right layout keeps update next to weather"
 
 jq -e '
   (.bar.layout.right | map(.id // .)) as $ids |
-  all(["omarchy.indicators", "omarchy.keyboard-layout", "omarchy.weather", "omarchy.system-update"][];
+  all(["omarchy.keyboard-layout", "omarchy.weather", "omarchy.system-update"][];
     . as $id | ($ids | map(select(. == $id)) | length) == 1)
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
-pass "default right layout preserves every former center widget"
+pass "default right layout preserves the keyboard weather and update widgets"
 
 jq -e '
   .bar.layout.right[-1].format == "ddd d MMM HH:mm"
@@ -414,10 +418,10 @@ jq -e '
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar defaults places service widgets without a running shell"
 
-jq -e '.bar.layout.center == [] and .bar.layout.right[-1].id == "omarchy.clock"' \
+jq -e '.bar.layout.center == [] and .bar.layout.left[-1].id == "omarchy.indicators" and .bar.layout.right[-1].id == "omarchy.clock"' \
   "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null ||
-  fail "optional service widgets displace the rightmost clock or populate the center"
-pass "bar defaults keeps the center empty and clock last when adding service widgets"
+  fail "optional service widgets disturb the isolated indicators or rightmost clock"
+pass "bar defaults keeps indicators on the left and clock last when adding service widgets"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=0 OMARCHY_TEST_TAILSCALE=0 omarchy-refresh-shell
 jq -e '

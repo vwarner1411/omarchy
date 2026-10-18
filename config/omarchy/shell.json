@@ -15,6 +15,9 @@
         },
         {
           "id": "omarchy.workspaces"
+        },
+        {
+          "id": "omarchy.indicators"
         }
       ],
       "center": [],
@@ -42,9 +45,6 @@
         },
         {
           "id": "omarchy.power"
-        },
-        {
-          "id": "omarchy.indicators"
         },
         {
           "id": "omarchy.keyboard-layout"

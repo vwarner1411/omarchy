@@ -34,7 +34,7 @@ RabbitMQ/Celery are retired from this fork's workstation assumptions. Their pack
 
 ## Default Bar Layout
 
-The center is empty. Indicators, keyboard layout, weather, and update status sit on the right, followed by the clock at the far edge. The clock uses `ddd d MMM HH:mm` (for example, `Sun 18 Oct 18:02`). New users and `omarchy bar defaults` use this layout; existing custom layouts are not overwritten.
+The center is empty. The expanding idle/indicator group sits beside the workspaces on the left, so revealing its icons does not shift the other controls. Keyboard layout, weather, and update status stay on the right, followed by the clock at the far-right edge. The clock uses `ddd d MMM HH:mm` (for example, `Sun 18 Oct 18:02`). New users and `omarchy bar defaults` use this layout; existing custom layouts are not overwritten.
 
 ## Default Bar Plugins
 

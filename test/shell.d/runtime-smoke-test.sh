@@ -426,20 +426,22 @@ pass "default bar layout renders expected module slots"
 
 jq -e '
   . as $rows |
+  map(select(.section == "left")) | map(.id) as $left |
+  $rows |
   map(select(.section == "right")) | map(.id) as $right |
+  $left[-1] == "omarchy.indicators" and
   all($rows[]; .section != "center" or .visible != true) and
-  all(["omarchy.indicators", "omarchy.weather", "omarchy.system-update", "omarchy.clock"][];
+  all(["omarchy.weather", "omarchy.system-update", "omarchy.clock"][];
     . as $id | ($right | index($id)) != null) and
-  (($right | index("omarchy.indicators")) < ($right | index("omarchy.weather"))) and
   (($right | index("omarchy.weather")) < ($right | index("omarchy.system-update"))) and
   (($right | index("omarchy.system-update")) < ($right | index("omarchy.clock")))
 ' <<<"$geometry" >/dev/null || {
   printf 'Geometry:\n' >&2
   jq . <<<"$geometry" >&2
-  fail_with_log "runtime geometry leaves the center empty and places the clock after the right-side status widgets"
+  fail_with_log "runtime geometry isolates indicators on the left and places the clock after the right-side status widgets"
 }
 
-pass "runtime geometry leaves the center empty and places the clock after the right-side status widgets"
+pass "runtime geometry isolates indicators on the left and places the clock after the right-side status widgets"
 
 for panel_id in omarchy.audio omarchy.bluetooth omarchy.monitor omarchy.network omarchy.power; do
   shell_ipc "$panel_id" open >/dev/null || fail_with_log "direct panel IPC opens $panel_id"
