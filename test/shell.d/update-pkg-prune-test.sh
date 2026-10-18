@@ -45,7 +45,7 @@ pass "cache prune warns but does not abort the update"
 # Ordering is the whole guarantee: rollback before the packages update, space
 # before the snapshot.
 line_of() {
-  grep -n "^[[:space:]]*$1\b" "$ROOT/bin/omarchy-update" | head -1 | cut -d: -f1
+  grep -nE "^[[:space:]]*(if ! )?$1\b" "$ROOT/bin/omarchy-update" | head -1 | cut -d: -f1
 }
 
 prune_line=$(line_of omarchy-update-pkg-prune)

@@ -288,10 +288,27 @@ fi
 
 omarchy_protocol=""
 omarchy_path=""
+verified_kernel_cmdline=""
 
 if [[ -f /boot/limine.conf ]]; then
   omarchy_protocol="$(extract_entry_option /boot/limine.conf "/Omarchy" "protocol" || true)"
   omarchy_path="$(extract_entry_option /boot/limine.conf "/Omarchy" "path" || true)"
+fi
+
+# Prefer the new kernel only after its migration has verified the driver build
+# and boot image. Otherwise retain the working entry for recovery.
+if [[ -f /var/lib/omarchy/migrations/1789325478 ]]; then
+  if [[ ! -f /boot/EFI/Linux/omarchy_linux-omarchy.efi ]]; then
+    echo "The verified Omarchy kernel UKI is missing; leaving the existing boot menu intact." >&2
+    exit 1
+  fi
+  omarchy_protocol="efi"
+  omarchy_path="boot():/EFI/Linux/omarchy_linux-omarchy.efi"
+  verified_kernel_cmdline=$(limine-entry-tool --get-cmdline linux-omarchy | tail -n 1)
+  if [[ -z $verified_kernel_cmdline ]]; then
+    echo "Cannot read the verified kernel command line; leaving the existing boot menu intact." >&2
+    exit 1
+  fi
 fi
 
 if [[ $omarchy_protocol == "efi" ]] && [[ -n $omarchy_path ]]; then
@@ -306,8 +323,8 @@ else
   fi
 fi
 
-cmdline=""
-if [[ -f /boot/limine.conf ]]; then
+cmdline="$verified_kernel_cmdline"
+if [[ -z $cmdline && -f /boot/limine.conf ]]; then
   cmdline="$(extract_entry_option /boot/limine.conf "/Omarchy" "cmdline" || true)"
   if [[ -z $cmdline ]]; then
     cmdline="$(extract_first_cmdline /boot/limine.conf || true)"

@@ -81,6 +81,7 @@ for command in \
   omarchy-update-aur-pkgs \
   omarchy-update-mise \
   omarchy-update-orphan-pkgs \
+  omarchy-refresh-sddm \
   omarchy-hook \
   omarchy-update-analyze-logs \
   omarchy-shell \

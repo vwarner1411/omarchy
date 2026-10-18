@@ -22,22 +22,15 @@ omarchy dev link /home/warnerva/programming/omarchy --no-reboot
 
 The link sets `OMARCHY_PATH` and sudo's Omarchy command path after reboot. Fixed package-owned paths under `/etc`, `/usr/lib/systemd`, and similar locations still require a package build rather than a development link.
 
-The SDDM login theme is restored from the linked checkout after system package updates by `omarchy update`, preserving this fork's user chooser. To restore it immediately after linking or a direct package installation, run `omarchy refresh sddm`. This takes effect at the next login screen without restarting the current session.
+The SDDM login theme is restored from the linked checkout after all package work and migrations by `omarchy update`, preserving this fork's user chooser even when an update fails. To restore it immediately after linking or a direct package installation, run `omarchy refresh sddm`. This takes effect at the next login screen without restarting the current session.
 
-## RabbitMQ and Celery Compatibility
+## Stable 4.0.5 Upgrade Safeguards
 
-Holding RabbitMQ and Erlang at compatible versions does not address Celery's queue declarations. RabbitMQ 4.3 rejects transient non-exclusive queues by default; Celery 5.6 clients using these control/reply queues can reconnect continuously and flood both the journal and RabbitMQ's log. Workers can remain `active` in systemd while their task queues have no consumers.
+Updates require a successful system snapshot before any package changes. Back up the separate EFI partitions as well: root snapshots do not include `/boot` or Windows' EFI partition.
 
-[`default/rabbitmq/rabbitmq.conf`](default/rabbitmq/rabbitmq.conf) contains the workstation's compatibility setting and built-in log rotation at 100 MiB with five compressed archives. Merge these settings into `/etc/rabbitmq/rabbitmq.conf` and restart `rabbitmq.service` to apply them. This is an administrator-owned config; a dev link does not install it automatically. Built-in rotation works even without `logrotate.timer`.
+The kernel migration retains the old kernel and checks the NVIDIA DKMS modules against the new kernel release before changing the boot order. The flat dual-boot menu selects the new Omarchy UKI only after the migration's driver and boot-image checks have succeeded; Windows and the previous kernel image are preserved.
 
-The deprecated queue permission is temporary. Remove it once every Celery client uses exclusive or durable control/event queues. See the [RabbitMQ queue compatibility guidance](https://www.rabbitmq.com/docs/queues#durability) and [log rotation documentation](https://www.rabbitmq.com/docs/logging).
-
-Verify queue consumers and recent errors after applying the settings:
-
-```bash
-sudo -u rabbitmq rabbitmqctl list_queues -p inkfish name consumers messages_ready messages_unacknowledged
-journalctl -u 'inkfish-worker@*.service' --since '2 minutes ago'
-```
+RabbitMQ/Celery are retired from this fork's workstation assumptions. Their package holds and compatibility configuration have been removed, and a migration removes existing holds while preserving other pacman settings. Decommission the legacy Inkfish worker services and uninstall the broker only after the system backup and the application's replacement deployment are ready; this source merge does not modify that separate application's virtual environment.
 
 ## Key Commands Added
 

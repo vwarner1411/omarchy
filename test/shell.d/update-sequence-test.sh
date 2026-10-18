@@ -43,7 +43,6 @@ for step in "${steps[@]}"; do
   cat >"$stub_bin/$step" <<'STUB'
 #!/bin/bash
 printf '%s unattended=%s\n' "${0##*/}" "${OMARCHY_UPDATE_UNATTENDED:-}" >>"$STEP_LOG"
-[[ ${FAILING_STEP:-} != "${0##*/}" ]] || exit 1
 case "${0##*/}" in
 omarchy-update-system-pkgs)
   # Model omarchy-settings replacing the login theme with upstream's version.
@@ -52,7 +51,13 @@ omarchy-update-system-pkgs)
 omarchy-refresh-sddm)
   cp "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$TEST_SDDM_THEME"
   ;;
+omarchy-migrate)
+  if [[ ${NESTED_PACKAGE_UPDATE:-0} == "1" ]]; then
+    printf 'upstream theme installed by a migration\n' >"$TEST_SDDM_THEME"
+  fi
+  ;;
 esac
+[[ ${FAILING_STEP:-} != "${0##*/}" ]] || exit "${FAILING_STATUS:-1}"
 STUB
   chmod +x "$stub_bin/$step"
 done
@@ -71,6 +76,8 @@ run_update() {
     TEST_SDDM_THEME="$test_tmp/Main.qml" \
     OMARCHY_PATH="${TEST_OMARCHY_PATH:-/usr/share/omarchy}" \
     FAILING_STEP="${FAILING_STEP:-}" \
+    FAILING_STATUS="${FAILING_STATUS:-1}" \
+    NESTED_PACKAGE_UPDATE="${NESTED_PACKAGE_UPDATE:-0}" \
     OMARCHY_UPDATE_LOGGED=1 \
     PATH="$stub_bin:$ROOT/bin:$PATH" \
     bash "$update_under_test" "$@" >"$test_tmp/out" 2>"$test_tmp/err"
@@ -93,12 +100,12 @@ expected_steps() {
     omarchy-update-dev \
     omarchy-update-keyring \
     omarchy-update-system-pkgs \
-    ${2:+omarchy-refresh-sddm} \
     omarchy-migrate \
     omarchy-hook \
     omarchy-update-aur-pkgs \
     omarchy-update-mise \
     omarchy-update-orphan-pkgs \
+    ${2:+omarchy-refresh-sddm} \
     omarchy-update-analyze-logs \
     omarchy-update-status \
     omarchy-update-stay-awake \
@@ -120,11 +127,10 @@ grep -q '^omarchy-update-system-pkgs unattended=$' "$test_tmp/steps" ||
 pass "-y is what marks an update unattended, not the update itself"
 
 # The checkout's QML survives a git merge, but SDDM loads the package-owned
-# copy under /usr/share/sddm. Restore it before migrations or optional updates
-# can fail and leave the next boot using the upstream login screen.
-TEST_OMARCHY_PATH="$ROOT" run_update -y || fail "a dev-linked update reports a failure"
+# copy under /usr/share/sddm. A migration can replace it a second time.
+TEST_OMARCHY_PATH="$ROOT" NESTED_PACKAGE_UPDATE=1 run_update -y || fail "a dev-linked update reports a failure"
 diff <(expected_steps '' dev) <(steps_run) >"$test_tmp/order" ||
-  fail "a dev-linked update restores SDDM immediately after packages" "$(cat "$test_tmp/order")"
+  fail "a dev-linked update restores SDDM after migrations and package work" "$(cat "$test_tmp/order")"
 cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$test_tmp/Main.qml" ||
   fail "a package update leaves the fork's user chooser installed"
 pass "a dev-linked update restores the fork's login theme after package replacement"
@@ -135,6 +141,13 @@ fi
 cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$test_tmp/Main.qml" ||
   fail "a later update failure loses the fork's login theme"
 pass "the fork's login theme survives a later update failure"
+
+if TEST_OMARCHY_PATH="$ROOT" NESTED_PACKAGE_UPDATE=1 FAILING_STEP=omarchy-migrate run_update -y; then
+  fail "a failed migration passes for a successful update"
+fi
+cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$test_tmp/Main.qml" ||
+  fail "a failed nested package transaction loses the fork's login theme"
+pass "a migration failure still restores the login theme after its package transaction"
 
 if TEST_OMARCHY_PATH="$ROOT" FAILING_STEP=omarchy-refresh-sddm run_update -y; then
   fail "a failed SDDM restoration passes for a successful update"
@@ -166,6 +179,18 @@ if ! ((orphan_line < dualboot_line && dualboot_line < analyze_line)); then
 fi
 pass "an update restores the existing dual-boot menu before reporting success"
 
+for failing_step in omarchy-update-system-pkgs omarchy-migrate omarchy-refresh-sddm; do
+  if TEST_OMARCHY_PATH="$ROOT" NESTED_PACKAGE_UPDATE=1 FAILING_STEP="$failing_step" run_update -y; then
+    fail "a failed $failing_step passes for a successful update"
+  fi
+  grep -q '^omarchy-setup-dualboot --windows-partuuid 12345678-9ABC-DEF0-1234-56789ABCDEF0$' "$test_tmp/steps" ||
+    fail "a failed $failing_step skips restoring the Windows boot menu"
+  if grep -q '^omarchy-update-restart ' "$test_tmp/steps"; then
+    fail "a failed $failing_step offers a reboot"
+  fi
+done
+pass "package, migration, and login restoration failures still restore the Windows boot menu"
+
 rm -f "$test_tmp/limine.conf"
 
 # Migrations ship with the packages the upgrade installs and are written against
@@ -180,3 +205,13 @@ for step in omarchy-migrate omarchy-hook omarchy-update-aur-pkgs omarchy-update-
   fi
 done
 pass "a blocked package upgrade stops the update before it migrates"
+
+for failure_status in 1 127; do
+  if FAILING_STEP=omarchy-snapshot FAILING_STATUS="$failure_status" run_update -y; then
+    fail "an update proceeds without a system snapshot"
+  fi
+  if grep -qE '^omarchy-update-(dev|keyring|system-pkgs|restart) ' "$test_tmp/steps"; then
+    fail "a missing backup changes packages or offers a reboot"
+  fi
+done
+pass "a failed or unavailable snapshot prevents all package changes"

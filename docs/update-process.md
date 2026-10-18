@@ -118,7 +118,7 @@ omarchy-update
   ├─ omarchy-update-requires-free-space
   │    └─ check free space on / and warn below the configured threshold
   ├─ confirm unless -y
-  ├─ create snapper snapshot, if snapper is installed
+  ├─ require a successful snapper snapshot before package changes
   ├─ omarchy-update-stay-awake start
   ├─ run package updates, migrations, hooks, and log analysis
   ├─ omarchy-update-status
@@ -132,11 +132,15 @@ Important behavior:
 
 - In dev-link mode, `omarchy update` fast-forwards the active checkout from its
   configured upstream before changing system packages or running migrations.
-- Immediately after system package updates, dev-link mode restores the checkout's
-  SDDM theme with `omarchy refresh sddm`. SDDM reads a fixed system path that
-  `omarchy-settings` overwrites; without this refresh, the fork's user chooser
-  disappears at the next boot. A refresh failure stops the update before the
-  reboot prompt. Direct package installations need a manual refresh.
+- After all package work and migrations, dev-link mode restores the checkout's
+  SDDM theme with `omarchy refresh sddm`. The exit handler also restores it after
+  a failed package transaction or migration, together with the captured dual-boot
+  menu. This includes package transactions performed inside migrations. A refresh
+  failure stops the update before the reboot prompt. Direct package installations
+  need a manual refresh.
+- A failed or unavailable system snapshot stops the update before package changes.
+  Separately back up the EFI partitions before a kernel/bootloader upgrade; they
+  are not included in the root snapshot.
 - The free-space requirement uses a 10 GiB threshold and stops the update before
   confirmation when it is not met. If free space cannot be determined, the
   check is silently skipped. Set `OMARCHY_UPDATE_FORCE=1` to bypass the check.

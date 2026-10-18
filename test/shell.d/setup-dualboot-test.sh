@@ -52,6 +52,13 @@ cat >"$stub_bin/efibootmgr" <<'STUB'
 printf '%s\n' 'Boot0000* Windows Boot Manager'
 STUB
 
+cat >"$stub_bin/limine-entry-tool" <<'STUB'
+#!/bin/bash
+[[ $* == "--get-cmdline linux-omarchy" ]] || exit 99
+[[ ${KERNEL_CMDLINE_FAIL:-0} == "0" ]] || exit 1
+printf '%s\n' 'quiet splash root=PARTUUID=559cf303-a5c7-4184-9063-9c5f539d8d71 rw rootfstype=btrfs initramfs_async=0 systemd.tty.term.console=dumb'
+STUB
+
 chmod +x "$stub_bin"/*
 
 dualboot_under_test="$test_tmp/omarchy-setup-dualboot"
@@ -59,6 +66,7 @@ sed \
   -e "s#/boot/#$boot_dir/#g" \
   -e "s#/etc/machine-id#$test_tmp/machine-id#g" \
   -e "s#/etc/default/limine#$test_tmp/default-limine#g" \
+  -e "s#/var/lib/omarchy/migrations/1789325478#$test_tmp/kernel-verified#g" \
   -e "s#/sys/firmware/efi/efivars#$test_tmp/sys/firmware/efi/efivars#g" \
   "$ROOT/bin/omarchy-setup-dualboot" >"$dualboot_under_test"
 
@@ -94,3 +102,34 @@ if run_dualboot --windows-partuuid not-a-guid; then
 fi
 cmp -s "$original_config" "$limine_config" || fail "a rejected Windows PARTUUID changes the Limine config"
 pass "dual-boot setup rejects an invalid Windows PARTUUID before changing the config"
+
+printf '%s\n' new-uki >"$boot_dir/EFI/Linux/omarchy_linux-omarchy.efi"
+run_dualboot --windows-partuuid 85197C7F-189B-499D-A385-B498F595BE81 || fail "an unverified kernel leaves a usable menu"
+grep -q '^path: boot():/EFI/Linux/omarchy_linux.efi$' "$limine_config" ||
+  fail "an unverified kernel replaces the working boot entry"
+pass "a newly installed kernel is not selected before its driver and image verification"
+
+touch "$test_tmp/kernel-verified"
+run_dualboot --windows-partuuid 85197C7F-189B-499D-A385-B498F595BE81 || fail "the verified kernel can be selected"
+grep -q '^path: boot():/EFI/Linux/omarchy_linux-omarchy.efi$' "$limine_config" ||
+  fail "dual-boot restoration switches back to the old kernel after migration"
+grep -q '^path: guid(85197c7f-189b-499d-a385-b498f595be81):/EFI/Microsoft/Boot/bootmgfw.efi$' "$limine_config" ||
+  fail "selecting the new kernel loses Windows"
+[[ -f $boot_dir/EFI/Linux/omarchy_linux.efi ]] || fail "the recovery kernel image is removed"
+grep -q 'initramfs_async=0 systemd.tty.term.console=dumb$' "$limine_config" ||
+  fail "the flat menu discards the new kernel's boot fixes"
+pass "the flat menu selects the verified Omarchy kernel and preserves Windows and the old image"
+
+cp "$limine_config" "$test_tmp/verified-menu"
+if KERNEL_CMDLINE_FAIL=1 run_dualboot --windows-partuuid 85197C7F-189B-499D-A385-B498F595BE81; then
+  fail "an unreadable kernel command line passes validation"
+fi
+cmp -s "$limine_config" "$test_tmp/verified-menu" || fail "a command-line failure overwrites the menu"
+pass "the new kernel command line is required before replacing the menu"
+
+rm "$boot_dir/EFI/Linux/omarchy_linux-omarchy.efi"
+if run_dualboot --windows-partuuid 85197C7F-189B-499D-A385-B498F595BE81; then
+  fail "a missing verified boot image passes validation"
+fi
+cmp -s "$limine_config" "$test_tmp/verified-menu" || fail "a missing boot image overwrites the menu"
+pass "a missing verified boot image fails before replacing the menu"
