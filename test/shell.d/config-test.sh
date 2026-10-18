@@ -23,9 +23,9 @@ jq -e '.bar.layout.center == []' "$ROOT/config/omarchy/shell.json" >/dev/null ||
   fail "default bar leaves the center empty"
 pass "default bar leaves the center empty"
 
-jq -e '.bar.layout.left[-1].id == "omarchy.indicators" and .bar.layout.left[-2].id == "omarchy.workspaces"' \
-  "$ROOT/config/omarchy/shell.json" >/dev/null || fail "default expanding indicators sit after the left-hand workspaces"
-pass "default expanding indicators sit after the left-hand workspaces"
+jq -e '.bar.layout.right[0].id == "omarchy.indicators" and .bar.layout.right[1].id == "omarchy.tray"' \
+  "$ROOT/config/omarchy/shell.json" >/dev/null || fail "default expanding indicators sit immediately before the tray chevron"
+pass "default expanding indicators sit immediately before the tray chevron"
 
 jq -e '
   [.bar.layout[][] | .id] as $ids |
@@ -418,10 +418,10 @@ jq -e '
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar defaults places service widgets without a running shell"
 
-jq -e '.bar.layout.center == [] and .bar.layout.left[-1].id == "omarchy.indicators" and .bar.layout.right[-1].id == "omarchy.clock"' \
+jq -e '.bar.layout.center == [] and .bar.layout.right[0].id == "omarchy.indicators" and .bar.layout.right[1].id == "omarchy.tray" and .bar.layout.right[-1].id == "omarchy.clock"' \
   "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null ||
   fail "optional service widgets disturb the isolated indicators or rightmost clock"
-pass "bar defaults keeps indicators on the left and clock last when adding service widgets"
+pass "bar defaults keeps indicators before the tray and clock last when adding service widgets"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" PATH="$mock_path" OMARCHY_TEST_DROPBOX=0 OMARCHY_TEST_TAILSCALE=0 omarchy-refresh-shell
 jq -e '

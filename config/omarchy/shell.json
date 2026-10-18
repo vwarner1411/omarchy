@@ -15,13 +15,13 @@
         },
         {
           "id": "omarchy.workspaces"
-        },
-        {
-          "id": "omarchy.indicators"
         }
       ],
       "center": [],
       "right": [
+        {
+          "id": "omarchy.indicators"
+        },
         {
           "id": "omarchy.tray"
         },

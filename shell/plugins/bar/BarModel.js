@@ -35,7 +35,9 @@ function pinTrayToInner(entries, section) {
     else result.push(values[i])
   }
   if (trayEntry) {
-    if (section === "right") result.unshift(trayEntry)
+    // A leading indicators group also expands inward; keep it next to the
+    // chevron instead of forcing the tray ahead of the user's placement.
+    if (section === "right") result.splice(entryId(values[0]) === "omarchy.indicators" ? 1 : 0, 0, trayEntry)
     else result.push(trayEntry)
   }
   return result

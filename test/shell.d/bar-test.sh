@@ -312,6 +312,25 @@ const entries = [{ id: 'a' }, { id: 'omarchy.tray' }, { id: 'b' }]
 assertDeepEqual(bar.pinTrayToInner(entries, 'left').map(bar.entryId), ['a', 'b', 'omarchy.tray'], 'bar pins tray to left inner edge')
 assertDeepEqual(bar.pinTrayToInner(entries, 'right').map(bar.entryId), ['omarchy.tray', 'a', 'b'], 'bar pins tray to right inner edge')
 
+const leadingIndicators = [{ id: 'omarchy.indicators', items: ['StayAwake'] }, { id: 'omarchy.tray', pinned: ['passwords'] }, { id: 'omarchy.audio' }]
+assertDeepEqual(bar.pinTrayToInner(leadingIndicators, 'right'), leadingIndicators, 'bar preserves explicitly leading indicators before the tray')
+assertDeepEqual(leadingIndicators[0].items, ['StayAwake'], 'tray placement preserves indicator settings')
+assertDeepEqual(
+  bar.pinTrayToInner(['omarchy.indicators', 'omarchy.audio', 'omarchy.tray'], 'right'),
+  ['omarchy.indicators', 'omarchy.tray', 'omarchy.audio'],
+  'bar pins the tray immediately after leading indicators with string entries'
+)
+assertDeepEqual(
+  bar.pinTrayToInner(['omarchy.tray', 'omarchy.indicators', 'omarchy.audio'], 'right'),
+  ['omarchy.tray', 'omarchy.indicators', 'omarchy.audio'],
+  'bar does not move indicators that were placed after the tray'
+)
+assertDeepEqual(
+  bar.pinTrayToInner(['omarchy.indicators', 'omarchy.audio'], 'right'),
+  ['omarchy.indicators', 'omarchy.audio'],
+  'leading indicators do not create a missing tray'
+)
+
 // A settings-only shell.json write must patch the live bar, not rebuild it:
 // the module Repeaters recreate every widget when their array model changes.
 const settingsLayout = { left: [{ id: 'omarchy.power' }], center: [{ id: 'omarchy.clock', format: 'HH:mm' }], right: [] }
