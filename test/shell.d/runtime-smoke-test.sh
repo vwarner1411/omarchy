@@ -47,7 +47,12 @@ stub_bin="$TMPDIR/bin"
 log="$TMPDIR/quickshell.log"
 mkdir -p "$test_root" "$test_home" "$stub_bin"
 cp -a "$ROOT/shell" "$test_root/shell"
-ln -s "$ROOT/config" "$test_root/config"
+# This fixture exercises the built-in display panel without downloading or
+# running the third-party replacement installed by the fork's first login.
+cp -a "$ROOT/config" "$test_root/config"
+jq '(.bar.layout[][] | select(.id == "io.github.dragosol.better-displays-pro")).id = "omarchy.monitor"' \
+  "$test_root/config/omarchy/shell.json" >"$test_root/config/omarchy/shell.json.tmp"
+mv "$test_root/config/omarchy/shell.json.tmp" "$test_root/config/omarchy/shell.json"
 ln -s "$ROOT/bin" "$test_root/bin"
 
 # Every plugin under ~/.config/omarchy/plugins hot-reloads, whoever wrote it.
@@ -484,7 +489,7 @@ pass "kept service is dropped when its plugin stops declaring a service"
 shell_ipc_quiet omarchy.system-update refresh >/dev/null 2>&1 || true
 sleep 0.8
 
-default_ids=$(jq -c '(.bar.layout.left + .bar.layout.center + .bar.layout.right) | map(.id // .)' "$ROOT/config/omarchy/shell.json")
+default_ids=$(jq -c '(.bar.layout.left + .bar.layout.center + .bar.layout.right) | map(.id // .)' "$test_root/config/omarchy/shell.json")
 visible_default_ids='[
   "omarchy.menu",
   "omarchy.workspaces",

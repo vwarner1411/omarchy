@@ -32,9 +32,11 @@ The kernel migration retains the old kernel and checks the NVIDIA DKMS modules a
 
 RabbitMQ/Celery are retired from this fork's workstation assumptions. Their package holds and compatibility configuration have been removed, and a migration removes existing holds while preserving other pacman settings. Decommission the legacy Inkfish worker services and uninstall the broker only after the system backup and the application's replacement deployment are ready; this source merge does not modify that separate application's virtual environment.
 
-## Default Hardware Monitor
+## Default Bar Plugins
 
 [Hardware Monitor](https://github.com/edgarsilva/omarchy-hw-monitor) is installed and enabled at first login, after the desktop shell starts. The default bar places it on the right, immediately after the tray. Installation needs network access; a failed first-run step is retried at the next login. An existing installation is left untouched, including its settings and placement.
+
+[Better Displays Pro](https://github.com/dragosol/omarchy-better-displays) is also installed at first login and replaces the stock Display widget between audio and power. If setup finds a stock display icon in an existing bar, it enables the replacement in that position before disabling the stock widget, avoiding duplicate icons. Existing plugin files and saved display profiles are preserved; setup does not change monitor resolutions, scaling, rotation, or arrangement. Installation failures leave an existing stock control intact and are retried at the next login.
 
 ## Key Commands Added
 
