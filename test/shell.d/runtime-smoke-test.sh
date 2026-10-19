@@ -52,7 +52,8 @@ cp -a "$ROOT/shell" "$test_root/shell"
 cp -a "$ROOT/config" "$test_root/config"
 jq '
   (.bar.layout[][] | select(.id == "io.github.dragosol.better-displays-pro")).id = "omarchy.monitor" |
-  (.bar.layout[][] | select(.id == "cdelcollado.bluetooth")).id = "omarchy.bluetooth"
+  (.bar.layout[][] | select(.id == "cdelcollado.bluetooth")).id = "omarchy.bluetooth" |
+  (.bar.layout[][] | select(.id == "tmn73.calendar")).id = "omarchy.clock"
 ' \
   "$test_root/config/omarchy/shell.json" >"$test_root/config/omarchy/shell.json.tmp"
 mv "$test_root/config/omarchy/shell.json.tmp" "$test_root/config/omarchy/shell.json"

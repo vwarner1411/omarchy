@@ -6,6 +6,7 @@ o.bind("SUPER + ALT + SHIFT + F", "File manager (cwd)", { omarchy = "nautilus-cw
 o.bind("SUPER + SHIFT + B", "Browser", { omarchy = "browser" })
 o.bind("SUPER + SHIFT + ALT + B", "Browser (private)", { omarchy = "browser --private" })
 o.bind("SUPER + SHIFT + N", "Editor", { omarchy = "editor" })
+o.bind("SUPER + SHIFT + C", "Calendar", "omarchy-shell shell toggle omarchy.clock")
 
 if o.preinstalled_bindings_enabled() then
   -- Bindings for preinstalled Omarchy applications, TUIs, and web apps.
@@ -21,7 +22,6 @@ if o.preinstalled_bindings_enabled() then
 
   o.bind("SUPER + SHIFT + A", "ChatGPT", { webapp = "https://chatgpt.com" })
   o.bind("SUPER + SHIFT + ALT + A", "Grok", { webapp = "https://grok.com" })
-  o.bind("SUPER + SHIFT + C", "Calendar", { webapp = "https://app.hey.com/calendar/weeks/" })
   o.bind("SUPER + SHIFT + E", "Email", { webapp = "https://app.hey.com" })
   o.bind("SUPER + SHIFT + ALT + E", "New email", { webapp = "https://app.hey.com/messages/new?display=standalone&new_window=true" })
   o.bind("SUPER + SHIFT + Y", "YouTube", { webapp = "https://youtube.com/" })

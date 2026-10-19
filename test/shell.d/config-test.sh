@@ -29,8 +29,9 @@ pass "default expanding indicators sit immediately before the tray chevron"
 
 jq -e '
   [.bar.layout[][] | .id] as $ids |
-  ($ids | map(select(. == "omarchy.clock")) | length) == 1 and
-  .bar.layout.right[-1].id == "omarchy.clock"
+  ($ids | map(select(. == "tmn73.calendar")) | length) == 1 and
+  ($ids | index("omarchy.clock")) == null and
+  .bar.layout.right[-1].id == "tmn73.calendar"
 ' "$ROOT/config/omarchy/shell.json" >/dev/null || fail "default bar keeps one clock at the far right"
 pass "default bar keeps one clock at the far right"
 
@@ -58,7 +59,7 @@ jq -e '
 pass "default clock shows weekday date and 24-hour time"
 
 jq -e '
-  any(.bar.layout.right[]; (.id // .) == "omarchy.clock" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
+  any(.bar.layout.right[]; (.id // .) == "tmn73.calendar" and (.formatAlt // "") == "d MMMM \u0027W\u0027ww yyyy")
 ' "$ROOT/config/omarchy/shell.json" >/dev/null
 pass "default clock date format has no leading zero"
 
@@ -418,7 +419,7 @@ jq -e '
 ' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar defaults places service widgets without a running shell"
 
-jq -e '.bar.layout.center == [] and .bar.layout.right[0].id == "omarchy.indicators" and .bar.layout.right[1].id == "omarchy.tray" and .bar.layout.right[-1].id == "omarchy.clock"' \
+jq -e '.bar.layout.center == [] and .bar.layout.right[0].id == "omarchy.indicators" and .bar.layout.right[1].id == "omarchy.tray" and .bar.layout.right[-1].id == "tmn73.calendar"' \
   "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null ||
   fail "optional service widgets disturb the isolated indicators or rightmost clock"
 pass "bar defaults keeps indicators before the tray and clock last when adding service widgets"

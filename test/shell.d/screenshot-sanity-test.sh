@@ -59,7 +59,11 @@ log="$TMPDIR/quickshell.log"
 screenshot_err="$TMPDIR/screenshot.err"
 mkdir -p "$test_root" "$test_home" "$stub_bin" "$screenshot_dir"
 cp -a "$ROOT/shell" "$test_root/shell"
-ln -s "$ROOT/config" "$test_root/config"
+cp -a "$ROOT/config" "$test_root/config"
+# Keep this built-in screenshot test independent of third-party downloads.
+jq '(.bar.layout[][] | select(.id == "tmn73.calendar")).id = "omarchy.clock"' \
+  "$test_root/config/omarchy/shell.json" >"$test_root/config/omarchy/shell.json.tmp"
+mv "$test_root/config/omarchy/shell.json.tmp" "$test_root/config/omarchy/shell.json"
 ln -s "$ROOT/bin" "$test_root/bin"
 
 cat >"$stub_bin/omarchy-update-available" <<'SH'

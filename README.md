@@ -34,7 +34,7 @@ RabbitMQ/Celery are retired from this fork's workstation assumptions. Their pack
 
 ## Default Bar Layout
 
-The center is empty. The expanding idle/indicator group sits at the start of the right-hand group, immediately before the tray's `<` chevron and pinned apps such as 1Password. Both groups expand into the empty space on their left without shifting the remaining controls. Keyboard layout, weather, and update status stay on the right, followed by the clock at the far-right edge. The clock uses `ddd d MMM HH:mm` (for example, `Sun 18 Oct 18:02`). New users and `omarchy bar defaults` use this layout; existing custom layouts are not overwritten.
+The center is empty. The expanding idle/indicator group sits at the start of the right-hand group, immediately before the tray's `<` chevron and pinned apps such as 1Password. Both groups expand into the empty space on their left without shifting the remaining controls. Keyboard layout, weather, and update status stay on the right, followed by the Calendar plugin's clock at the far-right edge. The clock uses `ddd d MMM HH:mm` (for example, `Sun 18 Oct 18:02`). New users and `omarchy bar defaults` use this layout; existing custom layouts are not reset.
 
 ## Default Bar Plugins
 
@@ -43,6 +43,8 @@ The center is empty. The expanding idle/indicator group sits at the start of the
 [Better Displays Pro](https://github.com/dragosol/omarchy-better-displays) is also installed at first login and replaces the stock Display widget between audio and power. If setup finds a stock display icon in an existing bar, it enables the replacement in that position before disabling the stock widget, avoiding duplicate icons. Existing plugin files and saved display profiles are preserved; setup does not change monitor resolutions, scaling, rotation, or arrangement. Installation failures leave an existing stock control intact and are retried at the next login.
 
 [Bluetooth (hide devices)](https://github.com/cdelcollado/btomarchy) is installed at first login and replaces the stock Bluetooth widget between agents and network. Setup enables it in the stock position before disabling the old widget, and the default Super+Ctrl+B shortcut opens the replacement. Existing plugin code, settings, and hidden-device lists are preserved. Installation or activation failures leave an existing stock control intact and are retried at the next login.
+
+[Calendar](https://github.com/tmn73/omarchy-calendar) is installed at first login and replaces the stock clock/calendar with one date/time widget at the far right. Setup retains clock formats and existing plugin settings, does not reinstall an existing plugin, and retries failed downloads or activation without removing a working stock clock. Super+Shift+C and Super+Ctrl+Alt+D open the calendar through Omarchy's clone-aware clock route, with the stock calendar still usable if restored. Account sign-in, calendar sync and event-writing permissions are not configured automatically.
 
 ## Key Commands Added
 

@@ -83,6 +83,8 @@ run_first_run_step "install default display plugin" \
   bash -euo pipefail "$OMARCHY_PATH/install/user/first-run/better-displays.sh"
 run_first_run_step "install default Bluetooth plugin" \
   bash -euo pipefail "$OMARCHY_PATH/install/user/first-run/bluetooth.sh"
+run_first_run_step "install default calendar plugin" \
+  bash -euo pipefail "$OMARCHY_PATH/install/user/first-run/calendar.sh"
 run_first_run_step "set GNOME theme" \
   bash "$OMARCHY_PATH/install/user/first-run/gnome-theme.sh"
 run_first_run_step "set GTK primary paste" \
