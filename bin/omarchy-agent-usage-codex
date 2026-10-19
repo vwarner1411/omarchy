@@ -478,20 +478,30 @@ def rpc_request(proc, request_id, method, params=None, timeout=8):
   payload = {"id": request_id, "method": method, "params": params or {}}
   proc.stdin.write(json.dumps(payload) + "\n")
   proc.stdin.flush()
-  deadline = time.time() + timeout
-  while time.time() < deadline:
-    ready, _, _ = select.select([proc.stdout], [], [], 0.25)
+  deadline = time.monotonic() + timeout
+  pending = b""
+  while True:
+    # TextIO.readline() can read a notification and its following reply into
+    # Python's buffer. select() then sees an empty OS pipe and falsely times
+    # out, so frame raw bytes and drain complete lines before waiting again.
+    while b"\n" in pending:
+      line, pending = pending.split(b"\n", 1)
+      try:
+        message = json.loads(line)
+      except Exception:
+        continue
+      if isinstance(message, dict) and message.get("id") == request_id:
+        return message
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+      break
+    ready, _, _ = select.select([proc.stdout], [], [], min(0.25, remaining))
     if not ready:
       continue
-    line = proc.stdout.readline()
-    if not line:
+    chunk = os.read(proc.stdout.fileno(), 65536)
+    if not chunk:
       break
-    try:
-      message = json.loads(line)
-    except Exception:
-      continue
-    if message.get("id") == request_id:
-      return message
+    pending += chunk
   raise TimeoutError(method)
 
 
