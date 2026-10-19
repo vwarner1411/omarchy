@@ -67,6 +67,11 @@ PanelWindow {
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string barPos: bar ? bar.position : "top"
 
+  // Widget settings can override a plugin's preferred alignment, including
+  // third-party panels that explicitly ask to be centered on the screen.
+  readonly property bool effectiveCenterOnBar: owner && typeof owner.setting === "function"
+    ? owner.setting("centerOnBar", centerOnBar) === true : centerOnBar
+
   function close() {
     if (owner && "close" in owner) owner.close()
     else root.open = false
@@ -195,10 +200,10 @@ PanelWindow {
   readonly property point cardOrigin: {
     if (!anchorItem || !bar) return Qt.point(margin, margin)
     var x = 0, y = 0
-    if (centerOnBar && (barPos === "top" || barPos === "bottom")) {
+    if (effectiveCenterOnBar && (barPos === "top" || barPos === "bottom")) {
       x = screenW / 2 - contentWidth / 2
       y = barPos === "bottom" ? screenH - barH - contentHeight - gap : barH + gap
-    } else if (centerOnBar) {
+    } else if (effectiveCenterOnBar) {
       x = barPos === "left" ? barW + gap : screenW - barW - contentWidth - gap
       y = screenH / 2 - contentHeight / 2
     } else if (barPos === "bottom") {

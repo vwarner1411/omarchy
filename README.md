@@ -36,6 +36,8 @@ RabbitMQ/Celery are retired from this fork's workstation assumptions. Their pack
 
 The center is empty. The expanding idle/indicator group sits at the start of the right-hand group, immediately before the tray's `<` chevron and pinned apps such as 1Password. Both groups expand into the empty space on their left without shifting the remaining controls. Keyboard layout, weather, and update status stay on the right, followed by the Calendar plugin's clock at the far-right edge. The clock uses `ddd d MMM HH:mm` (for example, `Sun 18 Oct 18:02`). New users and `omarchy bar defaults` use this layout; existing custom layouts are not reset.
 
+Calendar and weather popups open beneath their own bar icons, clamped to the screen edge. Their inline `centerOnBar: false` setting overrides the plugins' centered-panel preference without modifying third-party plugin code.
+
 ## Default Bar Plugins
 
 [Hardware Monitor](https://github.com/edgarsilva/omarchy-hw-monitor) is installed and enabled at first login, after the desktop shell starts. The default bar places it on the right, immediately after the tray. Installation needs network access; a failed first-run step is retried at the next login. An existing installation is left untouched, including its settings and placement.

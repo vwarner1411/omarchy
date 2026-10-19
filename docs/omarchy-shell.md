@@ -288,6 +288,16 @@ Popout placement deliberately follows Hyprland's `general:gaps_out`
 `hyprland.lua` to change that outer alignment; `[spacing]` controls the
 interior breathing room.
 
+Panels using `Ui.KeyboardPanel` honor their owning widget's inline
+`centerOnBar` setting. Set it to `false` to follow the bar icon, clamped to
+the screen edge, or `true` to center the panel along the bar. Without an
+override, the plugin's own preference is preserved. For example:
+
+```bash
+omarchy bar set tmn73.calendar centerOnBar false --json
+omarchy bar set omarchy.weather centerOnBar false --json
+```
+
 For one-off proportional constants, use `Style.space(px)` to preserve the
 old default at scale `1.0` and `base-size = 12` while still responding to
 the theme scale and font scale. Use `Style.spaceReal(px)` only for
