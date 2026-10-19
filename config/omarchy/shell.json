@@ -64,5 +64,9 @@
       ]
     }
   },
-  "plugins": []
+  "plugins": [
+    {
+      "id": "vt.grok-usage"
+    }
+  ]
 }

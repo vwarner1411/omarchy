@@ -46,6 +46,8 @@ The center is empty. The expanding idle/indicator group sits at the start of the
 
 [Calendar](https://github.com/tmn73/omarchy-calendar) is installed at first login and replaces the stock clock/calendar with one date/time widget at the far right. Setup retains clock formats and existing plugin settings, does not reinstall an existing plugin, and retries failed downloads or activation without removing a working stock clock. Super+Shift+C and Super+Ctrl+Alt+D open the calendar through Omarchy's clone-aware clock route, with the stock calendar still usable if restored. Account sign-in, calendar sync and event-writing permissions are not configured automatically.
 
+[Grok Usage](https://github.com/vitally/omarchy-grok-usage) is installed and enabled at first login as a background collector for the stock Agents widget, without adding another bar icon or replacing the AI panel. It uses the user's existing Grok Build login and the Node runtime provisioned by this fork; credentials are never copied into the defaults. Existing plugin code, settings and disabled state are preserved. Grok appears once the signed-in collector receives usage limits; after signing in, `omarchy-shell vt.grok-usage refresh` refreshes it immediately. Failed plugin downloads are retried at the next login.
+
 ## Key Commands Added
 
 ### 1) Dual boot setup (Limine)
