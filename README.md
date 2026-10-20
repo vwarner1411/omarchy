@@ -24,11 +24,13 @@ The link sets `OMARCHY_PATH` and sudo's Omarchy command path after reboot. Fixed
 
 The SDDM login theme is restored from the linked checkout after all package work and migrations by `omarchy update`, preserving this fork's user chooser even when an update fails. To restore it immediately after linking or a direct package installation, run `omarchy refresh sddm`. This takes effect at the next login screen without restarting the current session.
 
-## Stable 4.0.5 Upgrade Safeguards
+## Stable 4.0.6 Upgrade Safeguards
 
 Updates require a successful system snapshot before any package changes. Back up the separate EFI partitions as well: root snapshots do not include `/boot` or Windows' EFI partition.
 
 The kernel migration retains the old kernel and checks the NVIDIA DKMS modules against the new kernel release before changing the boot order. The flat dual-boot menu selects the new Omarchy UKI only after the migration's driver and boot-image checks have succeeded; Windows and the previous kernel image are preserved.
+
+Stable 4.0.6 adds current-state lock checks before suspend, a boot-console migration that respects custom Limine command lines, and an initramfs guard for non-Latin keyboard layouts. The fork's configurable lock-screen blanking delay, dual-boot safeguards, login chooser, and desktop defaults are retained.
 
 RabbitMQ/Celery are retired from this fork's workstation assumptions. Their package holds and compatibility configuration have been removed, and a migration removes existing holds while preserving other pacman settings. Decommission the legacy Inkfish worker services and uninstall the broker only after the system backup and the application's replacement deployment are ready; this source merge does not modify that separate application's virtual environment.
 
