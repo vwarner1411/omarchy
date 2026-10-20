@@ -313,6 +313,14 @@ Panel {
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
+  Timer {
+    id: activeLimitsRefresh
+    interval: 60000
+    running: root.opened
+    repeat: true
+    onTriggered: usage.refreshLimits()
+  }
+
   Main {
     id: usage
     settings: root.settings

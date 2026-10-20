@@ -14,4 +14,10 @@ assert(/if \(buttonCode === Qt\.RightButton\) root\.launchAgent\(\)/.test(panelS
 assert(/else if \(buttonCode === Qt\.MiddleButton\) root\.selectProvider\(root\.providerIndex \+ 1\)/.test(panelSource), 'agents middle click still advances the subscription')
 assert(/else root\.toggle\(\)/.test(panelSource), 'agents left click still toggles the panel')
 assert(!/if \(buttonCode === Qt\.RightButton\) root\.refreshNow\(\)/.test(panelSource), 'agents right click no longer refreshes')
+
+const activeRefresh = panelSource.match(/Timer \{\s+id: activeLimitsRefresh([\s\S]*?)\n  \}/)
+assert(!!activeRefresh, 'the open agents panel refreshes live limits without faster background scans')
+assert(/interval: 60000/.test(activeRefresh[1]), 'visible limits refresh once per minute')
+assert(/running: root\.opened/.test(activeRefresh[1]), 'live limits polling stops when the panel closes')
+assert(/repeat: true/.test(activeRefresh[1]) && /onTriggered: usage\.refreshLimits\(\)/.test(activeRefresh[1]), 'visible polling uses the cheap limits refresh path')
 JS

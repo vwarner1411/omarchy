@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# omarchy:summary=Print Grok usage through the installed Grok Usage plugin
+# omarchy:args=[--force] [--limits-only]
+# omarchy:hidden=true
+
+set -euo pipefail
+
+plugin_id="vt.grok-usage"
+config="$HOME/.config/omarchy/shell.json"
+defaults="$OMARCHY_PATH/config/omarchy/shell.json"
+[[ -f $config ]] || config="$defaults"
+
+empty_record() {
+  jq -cn '{schemaVersion: 1, id: "grok", name: "Grok", ready: false, hasLocalStats: false, hasPromptStats: false, limits: []}'
+}
+
+if ! jq -e --arg id "$plugin_id" --slurpfile defaults "$defaults" '
+  any((.plugins // $defaults[0].plugins // [])[];
+    (if type == "object" then .id else . end) == $id) and
+  ((.disabledPlugins // []) | index($id) | not)
+' "$config" >/dev/null; then
+  empty_record
+  exit 0
+fi
+
+plugin_dir=$(omarchy-plugin-catalog | jq -r --arg id "$plugin_id" 'map(select(.id == $id))[0].sourceDir // empty')
+collector="$plugin_dir/scripts/omarchy-agent-usage-grok.js"
+if [[ -z $plugin_dir || ! -f $collector ]]; then
+  empty_record
+  exit 0
+fi
+
+# The graphical session may not have interactive-shell mise shims on PATH.
+for runtime in node bun \
+  "$HOME/.local/share/mise/shims/node" "$HOME/.local/share/mise/shims/bun" \
+  "$HOME/.local/bin/node" "$HOME/.local/bin/bun"; do
+  if omarchy-cmd-present "$runtime"; then
+    exec "$runtime" "$collector" "$@"
+  fi
+done
+
+echo "omarchy-agent-usage-grok: node or bun is required" >&2
+exit 1

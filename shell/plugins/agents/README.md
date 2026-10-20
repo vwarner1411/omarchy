@@ -55,6 +55,14 @@ light surfaces — and the bar glyph stands in when there is none.
 | `claude` | Anthropic's OAuth usage endpoint (5-hour session + 7-day weekly) | `~/.claude/projects` transcripts, opencode sessions on an Anthropic provider, plus `stats-cache.json` and `history.jsonl` as fallback |
 | `codex` | The Codex app-server RPC | native Codex CLI session files (plus pi and opencode sessions) |
 | `fireworks` | Estimated prepaid balance: configured funding minus rated account costs | Fireworks billing API, grouped by day and model for the last 30 days |
+| `grok` | The installed `vt.grok-usage` plugin's Grok Build billing collector | No local transcript statistics |
+
+The Grok adapter calls the installed plugin through Node or Bun, so opening
+the panel or pressing `r` refreshes Grok with the built-in agents instead of
+waiting for the plugin's separate 15-minute timer. Disabled or missing Grok
+plugins make no billing requests. While the panel is open, limits refresh
+every minute without rescanning transcripts; closing it stops that extra
+polling and leaves the configured background interval unchanged.
 
 Claude limits need a signed-in CLI; without credentials the panel says so and
 falls back to local stats only. A non-default Claude directory is honored via
