@@ -41,7 +41,18 @@ printf '%s\n' "$*" >>"$TEST_SHELL_LOG"
 case "$*" in
   "shell rescanPlugins") ;;
   "shell listPlugins") omarchy-plugin-catalog ;;
-  "shell enablePlugin igor-alexandrov.tailscale {}") echo ok ;;
+  "shell enablePlugin igor-alexandrov.tailscale {}")
+    [[ ${TEST_ENABLE_FAIL:-0} == "0" ]] || { echo "activation failed"; exit 0; }
+    echo ok
+    ;;
+  "shell enablePlugin omarchy.tailscale {}") echo ok ;;
+  "shell setPluginEnabled omarchy.tailscale false")
+    config="$HOME/.config/omarchy/shell.json"
+    jq 'del(.bar.layout[][] | select((if type == "object" then .id else . end) == "omarchy.tailscale"))' \
+      "$config" >"$config.tmp"
+    mv "$config.tmp" "$config"
+    echo ok
+    ;;
   *) exit 99 ;;
 esac
 SH
@@ -87,6 +98,75 @@ fi
 [[ ! -e $test_home/.config/omarchy/plugins/$plugin_id ]] || fail "a failed download leaves an installed plugin"
 TEST_CLONE_FAIL=0 run_setup >/dev/null 2>&1 || fail "plugin setup cannot retry a failed download"
 pass "a failed Tailscale download fails the setup step and remains retryable"
+
+config="$test_home/.config/omarchy/shell.json"
+write_duplicate_config() {
+  jq --arg id "$plugin_id" '
+    (.bar.layout.right[] | select(.id == $id)).refreshIntervalSec = 120 |
+    .bar.layout.right += [{id: "omarchy.tailscale"}]
+  ' "$ROOT/config/omarchy/shell.json" >"$config"
+  : >"$TEST_SHELL_LOG"
+}
+
+write_duplicate_config
+jq 'del(.bar.layout[][] | select(.id == "omarchy.tailscale"))' "$config" >"$scratch/deduplicated"
+run_setup >/dev/null
+expected=$(printf 'shell enablePlugin %s {}\nshell setPluginEnabled omarchy.tailscale false\n' "$plugin_id")
+[[ $(<"$TEST_SHELL_LOG") == "$expected" ]] || fail "setup does not enable the replacement before disabling the stock Tailscale icon" "$(<"$TEST_SHELL_LOG")"
+cmp -s "$config" "$scratch/deduplicated" || fail "deduplication changes replacement settings, its position, or unrelated widgets"
+pass "setup removes the stock Tailscale icon without moving or resetting the replacement"
+
+: >"$TEST_SHELL_LOG"
+run_setup >/dev/null
+[[ ! -s $TEST_SHELL_LOG ]] || fail "repeated setup changes an already-deduplicated bar"
+cmp -s "$config" "$scratch/deduplicated" || fail "repeated setup changes bar settings"
+pass "Tailscale deduplication is idempotent"
+
+write_duplicate_config
+cp "$config" "$scratch/before-failure"
+if TEST_ENABLE_FAIL=1 run_setup >"$scratch/activation-failure" 2>&1; then
+  fail "failed Tailscale activation passes for successful setup"
+fi
+! grep -Fq 'setPluginEnabled omarchy.tailscale false' "$TEST_SHELL_LOG" || fail "failed activation removes the working stock widget"
+cmp -s "$config" "$scratch/before-failure" || fail "failed activation changes the bar"
+pass "failed activation keeps the stock Tailscale control"
+
+write_duplicate_config
+jq --arg id "$plugin_id" '.disabledPlugins = [$id]' "$config" >"$scratch/explicitly-disabled"
+cp "$scratch/explicitly-disabled" "$config"
+run_setup >/dev/null
+[[ ! -s $TEST_SHELL_LOG ]] || fail "setup overrides an explicitly disabled replacement"
+cmp -s "$config" "$scratch/explicitly-disabled" || fail "setup changes an explicit opt-out"
+pass "an explicitly disabled replacement leaves the stock control and settings untouched"
+
+# Exercise the real service installer without touching packages, networking,
+# systemd, or the desktop. Its plugin commands still use the real CLI above.
+export TEST_SERVICE_LOG="$scratch/service.log"
+cat >"$scratch/bin/service-stub" <<'SH'
+#!/bin/bash
+printf '%s %s\n' "${0##*/}" "$*" >>"$TEST_SERVICE_LOG"
+SH
+chmod +x "$scratch/bin/service-stub"
+for command in sudo systemctl omarchy-pkg-add omarchy-webapp-install; do
+  ln -s service-stub "$scratch/bin/$command"
+done
+
+write_duplicate_config
+HOME="$test_home" bash "$ROOT/bin/omarchy-install-service-tailscale" >"$scratch/service-output" 2>&1 ||
+  fail "Tailscale service setup fails with the preferred plugin installed" "$(<"$scratch/service-output")"
+[[ $(<"$TEST_SHELL_LOG") == "$expected" ]] || fail "Tailscale service setup still enables the stock widget instead of the replacement" "$(<"$TEST_SHELL_LOG")"
+cmp -s "$config" "$scratch/deduplicated" || fail "Tailscale service setup changes unrelated bar settings"
+: >"$TEST_SHELL_LOG"
+HOME="$test_home" bash "$ROOT/bin/omarchy-install-service-tailscale" >/dev/null
+[[ ! -s $TEST_SHELL_LOG ]] || fail "repeated Tailscale service setup brings back a second icon"
+pass "Tailscale service setup uses the preferred widget and does not recreate duplicates"
+
+write_duplicate_config
+if HOME="$test_home" TEST_ENABLE_FAIL=1 bash "$ROOT/bin/omarchy-install-service-tailscale" >"$scratch/service-failure" 2>&1; then
+  fail "Tailscale service setup hides plugin activation errors"
+fi
+! grep -Fq 'setPluginEnabled omarchy.tailscale false' "$TEST_SHELL_LOG" || fail "failed service setup removes the working stock control"
+pass "Tailscale service setup propagates activation failures without removing the stock control"
 
 jq -e --arg id "$plugin_id" '
   [.bar.layout[][] | .id] as $all |
